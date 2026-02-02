@@ -174,6 +174,7 @@
       <itemPath>../../../Source/include/task.h</itemPath>
       <itemPath>../../../Source/include/croutine.h</itemPath>
       <itemPath>../../../Source/include/queue.h</itemPath>
+      <itemPath>../../../Source/include/FreeRTOS.h</itemPath>
       <itemPath>../FreeRTOSConfig.h</itemPath>
       <itemPath>../../Common/include/serial.h</itemPath>
     </logicalFolder>
