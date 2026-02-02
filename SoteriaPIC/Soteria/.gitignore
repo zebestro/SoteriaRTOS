@@ -1,0 +1,9 @@
+*.sw*
+PICIoT.X/build
+PICIoT.X/dist
+PICIoT.X/.generated_files
+PICIoT.X/MyConfig.mc3
+PICIoT.X/mcc-manifest-autosave.yml
+PICIoT.X/nbproject/Makefile-genesis.properties
+PICIoT.X/nbproject/private/private.xml
+PICIoT.X/PICIoT.mc3
