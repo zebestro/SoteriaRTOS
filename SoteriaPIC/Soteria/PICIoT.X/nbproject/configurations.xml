@@ -169,6 +169,7 @@
         <itemPath>mcc_generated_files/time_service.h</itemPath>
         <itemPath>mcc_generated_files/CryptoAuth_init.h</itemPath>
         <itemPath>mcc_generated_files/cryptoauthlib_config.h</itemPath>
+        <itemPath>mcc_generated_files/logger.h</itemPath>
       </logicalFolder>
       <itemPath>../../../Source/include/semphr.h</itemPath>
       <itemPath>../../../Source/include/task.h</itemPath>
@@ -372,6 +373,7 @@
         <itemPath>mcc_generated_files/spi1_driver.c</itemPath>
         <itemPath>mcc_generated_files/time_service.c</itemPath>
         <itemPath>mcc_generated_files/CryptoAuth_init.c</itemPath>
+        <itemPath>mcc_generated_files/logger.c</itemPath>
       </logicalFolder>
       <logicalFolder name="Standard Demo Source"
                      displayName="Standard Demo Source"
@@ -418,7 +420,7 @@
         <targetDevice>PIC24FJ128GA705</targetDevice>
         <targetHeader></targetHeader>
         <targetPluginBoard></targetPluginBoard>
-        <platformTool>noID</platformTool>
+        <platformTool>nEdbgTool</platformTool>
         <languageToolchain>XC16</languageToolchain>
         <languageToolchainVersion>2.10</languageToolchainVersion>
         <platform>2</platform>
@@ -454,7 +456,6 @@
         <makeCustomizationNormalizeHexFile>false</makeCustomizationNormalizeHexFile>
       </makeCustomizationType>
       <C30>
-        <property key="appendMe" value=""/>
         <property key="cast-align" value="false"/>
         <property key="code-model" value="default"/>
         <property key="const-model" value="default"/>
@@ -526,7 +527,6 @@
       </C30-CO>
       <C30-LD>
         <property key="additional-options-use-response-files" value="false"/>
-        <property key="appendMe" value=""/>
         <property key="boot-eeprom" value="no_eeprom"/>
         <property key="boot-flash" value="no_flash"/>
         <property key="boot-ram" value="no_ram"/>
@@ -655,6 +655,8 @@
         <property key="memories.programmemory" value="true"/>
         <property key="memories.programmemory.ranges" value="0-15eff"/>
         <property key="poweroptions.powerenable" value="false"/>
+        <property key="programmerToGoFilePath"
+                  value="/home/telea/Documents/SoteriaRTOS/SoteriaPIC/Soteria/PICIoT.X/debug/default/PICIoT_ptg"/>
         <property key="programoptions.eraseb4program" value="true"/>
         <property key="programoptions.preservedataflash" value="false"/>
         <property key="programoptions.preservedataflash.ranges"

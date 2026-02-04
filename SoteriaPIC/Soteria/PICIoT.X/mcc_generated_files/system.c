@@ -66,7 +66,7 @@ void SYSTEM_Initialize(void)
     CryptoAuth_Initialize();
     CLOCK_Initialize();
     INTERRUPT_Initialize();
-    UART1_Initialize();
+    //UART1_Initialize();
     ADC1_Initialize();
     timeout_initialize();
     TMR2_Initialize();

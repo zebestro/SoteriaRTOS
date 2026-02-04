@@ -161,7 +161,7 @@ void application_init(void)
 
     // Initialization of modules before interrupts are enabled
     SYSTEM_Initialize();
-
+/*
     // Blocking debounce
     timeout_flushAll();
     for(i = 0; i < SW_DEBOUNCE_INTERVAL; i++)
@@ -287,6 +287,7 @@ void application_init(void)
     
     LED_test();
     subscribeToCloud();
+ */
 }
 
 static void subscribeToCloud(void)

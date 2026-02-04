@@ -68,16 +68,6 @@
 #include "queue.h"
 #include "croutine.h"
 
-/* Demo application includes. */
-#include "BlockQ.h"
-#include "crflash.h"
-#include "blocktim.h"
-#include "integer.h"
-#include "comtest2.h"
-#include "partest.h"
-#include "lcd.h"
-#include "timertest.h"
-
 //#pragma config FWDTEN = OFF
 
 /* Demo task priorities. */
@@ -120,7 +110,6 @@ it is converted to a string. */
 /*
  * The check task as described at the top of this file.
  */
-static void vCheckTask( void *pvParameters );
 
 /*
  * Setup the processor ready for the demo.
@@ -141,27 +130,29 @@ static QueueHandle_t xLCDQueue;
 /*
  * Create the demo tasks then start the scheduler.
  */
-int main( void )
-{
+int main( void ) {
 	/* Configure any hardware required for this demo. */
-	prvSetupHardware();
+	//prvSetupHardware();
+        application_init();
 
 	/* Create the standard demo tasks. */
-	vStartBlockingQueueTasks( mainBLOCK_Q_PRIORITY );	
-	vStartIntegerMathTasks( tskIDLE_PRIORITY );
-	vStartFlashCoRoutines( mainNUM_FLASH_COROUTINES );
-	vAltStartComTestTasks( mainCOM_TEST_PRIORITY, mainCOM_TEST_BAUD_RATE, mainCOM_TEST_LED );
-	vCreateBlockTimeTasks();
+	//vStartBlockingQueueTasks( mainBLOCK_Q_PRIORITY );	
+	//vStartIntegerMathTasks( tskIDLE_PRIORITY );
+	//vStartFlashCoRoutines( mainNUM_FLASH_COROUTINES );
+	//vAltStartComTestTasks( mainCOM_TEST_PRIORITY, mainCOM_TEST_BAUD_RATE, mainCOM_TEST_LED );
+	//vCreateBlockTimeTasks();
 
 	/* Create the test tasks defined within this file. */
-	xTaskCreate( vCheckTask, "Check", mainCHECK_TAKS_STACK_SIZE, NULL, mainCHECK_TASK_PRIORITY, NULL );
+	//xTaskCreate( vCheckTask, "Check", mainCHECK_TAKS_STACK_SIZE, NULL, 1, NULL );
+    	//xTaskCreate( vCheTask, "Che", mainCHECK_TAKS_STACK_SIZE, NULL, 2, NULL );
+        xStartLoggerTask();
 
 	/* Start the task that will control the LCD.  This returns the handle
 	to the queue used to write text out to the task. */
-	xLCDQueue = xStartLCDTask();
+	//xLCDQueue = xStartLCDTask();
 
 	/* Start the high frequency interrupt test. */
-	vSetupTimerTest( mainTEST_INTERRUPT_FREQUENCY );
+	//vSetupTimerTest( mainTEST_INTERRUPT_FREQUENCY );
 
 	/* Finally start the scheduler. */
 	vTaskStartScheduler();
@@ -178,76 +169,6 @@ static void prvSetupHardware( void )
 }
 /*-----------------------------------------------------------*/
 
-static void vCheckTask( void *pvParameters )
-{
-/* Used to wake the task at the correct frequency. */
-TickType_t xLastExecutionTime; 
-
-/* The maximum jitter time measured by the fast interrupt test. */
-extern unsigned short usMaxJitter ;
-
-/* Buffer into which the maximum jitter time is written as a string. */
-static char cStringBuffer[ mainMAX_STRING_LENGTH ];
-
-/* The message that is sent on the queue to the LCD task.  The first
-parameter is the minimum time (in ticks) that the message should be
-left on the LCD without being overwritten.  The second parameter is a pointer
-to the message to display itself. */
-xLCDMessage xMessage = { 0, cStringBuffer };
-
-/* Set to pdTRUE should an error be detected in any of the standard demo tasks. */
-unsigned short usErrorDetected = pdFALSE;
-
-	/* Remove compiler warnings. */
-	( void ) pvParameters;
-
-	/* Initialise xLastExecutionTime so the first call to vTaskDelayUntil()
-	works correctly. */
-	xLastExecutionTime = xTaskGetTickCount();
-
-	for( ;; )
-	{
-		/* Wait until it is time for the next cycle. */
-		vTaskDelayUntil( &xLastExecutionTime, mainCHECK_TASK_PERIOD );
-
-		/* Has an error been found in any of the standard demo tasks? */
-
-		if( xAreIntegerMathsTaskStillRunning() != pdTRUE )
-		{
-			usErrorDetected = pdTRUE;
-			sprintf( cStringBuffer, "FAIL #1" );
-		}
-	
-		if( xAreComTestTasksStillRunning() != pdTRUE )
-		{
-			usErrorDetected = pdTRUE;
-			sprintf( cStringBuffer, "FAIL #2" );
-		}
-
-		if( xAreBlockTimeTestTasksStillRunning() != pdTRUE )
-		{
-			usErrorDetected = pdTRUE;
-			sprintf( cStringBuffer, "FAIL #3" );
-		}
-
-		if( xAreBlockingQueuesStillRunning() != pdTRUE )
-		{
-			usErrorDetected = pdTRUE;
-			sprintf( cStringBuffer, "FAIL #4" );
-		}
-
-		if( usErrorDetected == pdFALSE )
-		{
-			/* No errors have been discovered, so display the maximum jitter
-			timer discovered by the "fast interrupt test". */
-			sprintf( cStringBuffer, "%dns max jitter", ( short ) ( usMaxJitter - mainEXPECTED_CLOCKS_BETWEEN_INTERRUPTS ) * mainNS_PER_CLOCK );
-		}
-
-		/* Send the message to the LCD gatekeeper for display. */
-		xQueueSend( xLCDQueue, &xMessage, portMAX_DELAY );
-	}
-}
-/*-----------------------------------------------------------*/
 
 void vApplicationIdleHook( void )
 {
