@@ -163,12 +163,20 @@ void vLoggerTask(void *pvParameters)
 }
 
 
+#include "sensors_handling.h"
+#include<stdlib.h>
+
 void vSomeTask(void *pvParameters)
 {
+    int16_t temp = 0;
+    uint16_t light = 0;
     while(1)
     {
-        logger_printf("LOG - int %d char - %c, str - %s", 102, 'Y', "Hello world!");
-        vTaskDelay(pdMS_TO_TICKS(100));
+        temp =  SENSORS_getTempValue();
+        light = SENSORS_getLightValue();
+        //logger_printf("LOG - temperature %d, lightning %d", temp, light);
+        logger_printf("Light: %d, Temp: %d.%02d", light, temp/100, abs(temp)%100);
+        vTaskDelay(pdMS_TO_TICKS(20));
     }
 }
 

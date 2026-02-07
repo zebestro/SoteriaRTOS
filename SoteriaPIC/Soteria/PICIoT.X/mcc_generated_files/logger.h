@@ -4,7 +4,7 @@
 #include "FreeRTOS.h"
 #include "queue.h"
 
-#define LOGGER_QUEUE_LEN		4 * 3
+#define LOGGER_QUEUE_LEN		12
 #define LOGGER_MESSAGE_SIZE  128
 #define LOGGER_TASK_STACK_SIZE 1024
 
