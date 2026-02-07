@@ -165,7 +165,7 @@ void vLoggerTask(void *pvParameters)
 
 #include "sensors_handling.h"
 #include<stdlib.h>
-
+/*
 void vSomeTask(void *pvParameters)
 {
     int16_t temp = 0;
@@ -177,6 +177,33 @@ void vSomeTask(void *pvParameters)
         //logger_printf("LOG - temperature %d, lightning %d", temp, light);
         logger_printf("Light: %d, Temp: %d.%02d", light, temp/100, abs(temp)%100);
         vTaskDelay(pdMS_TO_TICKS(20));
+    }
+}
+*/
+
+#include "sgp40_i2c.h"
+#include "logger.h"
+
+void vSomeTask(void *pvParameters)
+{
+    (void)pvParameters;
+
+    uint16_t sraw_voc = 0;
+
+    // ??? SGP40: "no temperature/humidity compensation"
+    uint16_t t_sgp40  = 0x8000;
+    uint16_t rh_sgp40 = 0x8000;
+
+    while(1)
+    {
+        int16_t ret = sgp40_measure_raw_signal(rh_sgp40, t_sgp40, &sraw_voc);
+        if(ret != 0) {
+            logger_printf("SGP40: Failed to read VOC signal! Error: %d", ret);
+        } else {
+            logger_printf("SGP40 VOC raw: %d", sraw_voc);
+        }
+
+        vTaskDelay(pdMS_TO_TICKS(1000)); // ????????? ?????? ???????
     }
 }
 

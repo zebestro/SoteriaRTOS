@@ -29,6 +29,7 @@
                 <sourceRootElem>..\..\Common\Minimal</sourceRootElem>
                 <sourceRootElem>..\..\..\Source</sourceRootElem>
                 <sourceRootElem>..\..\..\Source\portable\MPLAB\PIC24_dsPIC</sourceRootElem>
+                <sourceRootElem>peripherals/sgp40</sourceRootElem>
             </sourceRootList>
             <confList>
                 <confElem>

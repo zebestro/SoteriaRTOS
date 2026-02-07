@@ -171,6 +171,15 @@
         <itemPath>mcc_generated_files/cryptoauthlib_config.h</itemPath>
         <itemPath>mcc_generated_files/logger.h</itemPath>
       </logicalFolder>
+      <logicalFolder name="f1" displayName="peripherals" projectFiles="true">
+        <logicalFolder name="f1" displayName="sgp40" projectFiles="true">
+          <itemPath>peripherals/sgp40/sensirion_common.h</itemPath>
+          <itemPath>peripherals/sgp40/sensirion_config.h</itemPath>
+          <itemPath>peripherals/sgp40/sensirion_i2c.h</itemPath>
+          <itemPath>peripherals/sgp40/sensirion_i2c_hal.h</itemPath>
+          <itemPath>peripherals/sgp40/sgp40_i2c.h</itemPath>
+        </logicalFolder>
+      </logicalFolder>
       <itemPath>../../../Source/include/semphr.h</itemPath>
       <itemPath>../../../Source/include/task.h</itemPath>
       <itemPath>../../../Source/include/croutine.h</itemPath>
@@ -375,6 +384,15 @@
         <itemPath>mcc_generated_files/CryptoAuth_init.c</itemPath>
         <itemPath>mcc_generated_files/logger.c</itemPath>
       </logicalFolder>
+      <logicalFolder name="f1" displayName="peripherals" projectFiles="true">
+        <logicalFolder name="f1" displayName="sgp40" projectFiles="true">
+          <itemPath>peripherals/sgp40/sensirion_common.c</itemPath>
+          <itemPath>peripherals/sgp40/sensirion_i2c.c</itemPath>
+          <itemPath>peripherals/sgp40/sensirion_i2c_hal.c</itemPath>
+          <itemPath>peripherals/sgp40/sgp40_i2c.c</itemPath>
+          <itemPath>peripherals/sgp40/sgp40_i2c_example_usage.c</itemPath>
+        </logicalFolder>
+      </logicalFolder>
       <logicalFolder name="Standard Demo Source"
                      displayName="Standard Demo Source"
                      projectFiles="true">
@@ -411,6 +429,7 @@
     <Elem>..\..\Common\Minimal</Elem>
     <Elem>..\..\..\Source</Elem>
     <Elem>..\..\..\Source\portable\MPLAB\PIC24_dsPIC</Elem>
+    <Elem>peripherals/sgp40</Elem>
   </sourceRootList>
   <projectmakefile>Makefile</projectmakefile>
   <confs>
@@ -574,7 +593,7 @@
       <C30Global>
         <property key="combine-sourcefiles" value="false"/>
         <property key="common-include-directories"
-                  value="mcc_generated_files/config;mcc_generated_files/winc;mcc_generated_files/drivers;mcc_generated_files;mcc_generated_files/CryptoAuthenticationLibrary"/>
+                  value="mcc_generated_files/config;mcc_generated_files/winc;mcc_generated_files/drivers;mcc_generated_files;mcc_generated_files/CryptoAuthenticationLibrary;peripherals/sgp40"/>
         <property key="dual-boot-partition" value="0"/>
         <property key="fast-math" value="false"/>
         <property key="generic-16-bit" value="false"/>
