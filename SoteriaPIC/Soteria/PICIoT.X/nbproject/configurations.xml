@@ -473,7 +473,7 @@
         <property key="enable-unroll-loops" value="false"/>
         <property key="expand-pragma-config" value="false"/>
         <property key="extra-include-directories"
-                  value="..;..\..\..\..\..\demo\pic24_mplab;..\..\..\..\demo\pic24_mplab;..\..\..\..\source\include;..\..\..\..\include;..\..\..\common\include;..\..\..\source\include;..\..\..\include;..\..\common\include;..\..\demo\pic24_mplab;..\..\include;..\filesystem;..\include;."/>
+                  value="..;..\..\..\..\..\Demo\PIC24_MPLAB;..\..\..\..\Demo\PIC24_MPLAB;..\..\..\..\Source\include;..\..\..\..\include;..\..\..\Common\include;..\..\..\Source\include;..\..\..\include;..\..\Common\include;..\..\Demo\PIC24_MPLAB;..\..\include;..\FileSystem;..\include;."/>
         <property key="isolate-each-function" value="true"/>
         <property key="keep-inline" value="false"/>
         <property key="oXC16gcc-align-arr" value="false"/>
