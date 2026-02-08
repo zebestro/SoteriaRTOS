@@ -30,6 +30,8 @@
                 <sourceRootElem>..\..\..\Source</sourceRootElem>
                 <sourceRootElem>..\..\..\Source\portable\MPLAB\PIC24_dsPIC</sourceRootElem>
                 <sourceRootElem>peripherals/sgp40</sourceRootElem>
+                <sourceRootElem>peripherals/sht40</sourceRootElem>
+                <sourceRootElem>peripherals/sensirion_hal</sourceRootElem>
             </sourceRootList>
             <confList>
                 <confElem>

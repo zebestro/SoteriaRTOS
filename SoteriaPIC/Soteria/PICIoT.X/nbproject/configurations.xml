@@ -430,6 +430,8 @@
     <Elem>..\..\..\Source</Elem>
     <Elem>..\..\..\Source\portable\MPLAB\PIC24_dsPIC</Elem>
     <Elem>peripherals/sgp40</Elem>
+    <Elem>peripherals/sht40</Elem>
+    <Elem>peripherals/sensirion_hal</Elem>
   </sourceRootList>
   <projectmakefile>Makefile</projectmakefile>
   <confs>
