@@ -1,44 +1,5 @@
-/*
-#include "sensirion_i2c_hal.h"
-#include "sensirion_common.h"
-#include "i2c_simple_master.h"
-#include <stdint.h>
-#include <stddef.h>
-#include "FreeRTOS.h"
-#include "task.h"
-
-
-int16_t sensirion_i2c_hal_select_bus(uint8_t bus_idx) {
-    (void)bus_idx;
-    return 0;
-}
-
-void sensirion_i2c_hal_init(void) {}
-
-void sensirion_i2c_hal_free(void) {}
-
-int8_t sensirion_i2c_hal_write(uint8_t address, const uint8_t* data, uint16_t count) {
-    if (data == NULL || count == 0)
-        return -1;
-
-    i2c_writeNBytes(address, (void*)data, count);
-    return 0;
-}
-
-int8_t sensirion_i2c_hal_read(uint8_t address, uint8_t* data, uint16_t count) {
-    if (data == NULL || count == 0)
-        return -1;
-
-    i2c_readNBytes(address, data, count);
-    return 0;
-}
-
-void sensirion_i2c_hal_sleep_usec(uint32_t useconds) {
-    vTaskDelay(pdMS_TO_TICKS((useconds+999)/1000));
-}
-*/
-
-
+#include "hardware/i2c.h"
+#include "pico/stdlib.h"
 /*
  * Copyright (c) 2018, Sensirion AG
  * All rights reserved.
@@ -70,21 +31,13 @@ void sensirion_i2c_hal_sleep_usec(uint32_t useconds) {
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "sensirion_i2c_hal.h"
 #include "sensirion_common.h"
-#include "i2c_simple_master.h"
-#include <stdint.h>
-#include <stddef.h>
-#include "FreeRTOS.h"
-#include "task.h"
+#include "sensirion_config.h"
+#include "sensirion_i2c_hal.h"
 
-/*
- * INSTRUCTIONS
- * ============
- *
- * Implement all functions where they are marked as IMPLEMENT.
- * Follow the function specification in the comments.
- */
+#define I2C_PORT i2c0
+#define PIN_I2C_SDA 4
+#define PIN_I2C_SCL 5
 
 /**
  * Select the current i2c bus by index.
@@ -97,8 +50,10 @@ void sensirion_i2c_hal_sleep_usec(uint32_t useconds) {
  * @returns         0 on success, an error code otherwise
  */
 int16_t sensirion_i2c_hal_select_bus(uint8_t bus_idx) {
-    (void)bus_idx;
-    return 0;
+    /* TODO:IMPLEMENT or leave empty if all sensors are located on one single
+     * bus
+     */
+    return NOT_IMPLEMENTED_ERROR;
 }
 
 /**
@@ -106,14 +61,26 @@ int16_t sensirion_i2c_hal_select_bus(uint8_t bus_idx) {
  * communication.
  */
 void sensirion_i2c_hal_init(void) {
-    /* TODO:IMPLEMENT */
+    stdio_init_all();
+
+    // I2C Initialisation. Using it at 400Khz.
+    i2c_init(I2C_PORT, 400 * 1000);
+
+    gpio_set_function(PIN_I2C_SDA, GPIO_FUNC_I2C);
+    gpio_set_function(PIN_I2C_SCL, GPIO_FUNC_I2C);
+    gpio_pull_up(PIN_I2C_SDA);
+    gpio_pull_up(PIN_I2C_SCL);
 }
 
 /**
  * Release all resources initialized by sensirion_i2c_hal_init().
  */
 void sensirion_i2c_hal_free(void) {
-    /* TODO:IMPLEMENT or leave empty if no resources need to be freed */
+    i2c_deinit(I2C_PORT);
+    gpio_set_function(PIN_I2C_SDA, GPIO_FUNC_NULL);
+    gpio_set_function(PIN_I2C_SCL, GPIO_FUNC_NULL);
+    gpio_disable_pulls(PIN_I2C_SDA);
+    gpio_disable_pulls(PIN_I2C_SCL);
 }
 
 /**
@@ -126,12 +93,13 @@ void sensirion_i2c_hal_free(void) {
  * @param count   number of bytes to read from I2C and store in the buffer
  * @returns 0 on success, error code otherwise
  */
-int8_t sensirion_i2c_hal_read(uint8_t address, uint8_t* data, uint16_t count) {
-    if (data == NULL || count == 0)
-        return -1;
+int8_t sensirion_i2c_hal_read(uint8_t address, uint8_t* data, uint8_t count) {
+    int status = i2c_read_blocking(I2C_PORT, address, data, count, false);
 
-    i2c_readNBytes(address, data, count);
-    return 0;
+    if (status <= 0)
+        return 1;
+    else
+        return 0;
 }
 
 /**
@@ -145,12 +113,15 @@ int8_t sensirion_i2c_hal_read(uint8_t address, uint8_t* data, uint16_t count) {
  * @param count   number of bytes to read from the buffer and send over I2C
  * @returns 0 on success, error code otherwise
  */
-int8_t sensirion_i2c_hal_write(uint8_t address, const uint8_t* data, uint16_t count) {
-    if (data == NULL || count == 0)
-        return -1;
+int8_t sensirion_i2c_hal_write(uint8_t address, const uint8_t* data,
+                               uint8_t count) {
+    // I2C Default is used (I2C0).
+    int status = i2c_write_blocking(I2C_PORT, address, data, count, false);
 
-    i2c_writeNBytes(address, (void*)data, count);
-    return 0;
+    if (status <= 0)
+        return 1;
+    else
+        return 0;
 }
 
 /**
@@ -162,5 +133,5 @@ int8_t sensirion_i2c_hal_write(uint8_t address, const uint8_t* data, uint16_t co
  * @param useconds the sleep time in microseconds
  */
 void sensirion_i2c_hal_sleep_usec(uint32_t useconds) {
-    vTaskDelay(pdMS_TO_TICKS((useconds+999)/1000));
+    sleep_ms(useconds / 1000);
 }

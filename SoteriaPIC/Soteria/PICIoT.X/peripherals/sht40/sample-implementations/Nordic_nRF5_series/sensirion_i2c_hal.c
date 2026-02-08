@@ -1,45 +1,4 @@
 /*
-#include "sensirion_i2c_hal.h"
-#include "sensirion_common.h"
-#include "i2c_simple_master.h"
-#include <stdint.h>
-#include <stddef.h>
-#include "FreeRTOS.h"
-#include "task.h"
-
-
-int16_t sensirion_i2c_hal_select_bus(uint8_t bus_idx) {
-    (void)bus_idx;
-    return 0;
-}
-
-void sensirion_i2c_hal_init(void) {}
-
-void sensirion_i2c_hal_free(void) {}
-
-int8_t sensirion_i2c_hal_write(uint8_t address, const uint8_t* data, uint16_t count) {
-    if (data == NULL || count == 0)
-        return -1;
-
-    i2c_writeNBytes(address, (void*)data, count);
-    return 0;
-}
-
-int8_t sensirion_i2c_hal_read(uint8_t address, uint8_t* data, uint16_t count) {
-    if (data == NULL || count == 0)
-        return -1;
-
-    i2c_readNBytes(address, data, count);
-    return 0;
-}
-
-void sensirion_i2c_hal_sleep_usec(uint32_t useconds) {
-    vTaskDelay(pdMS_TO_TICKS((useconds+999)/1000));
-}
-*/
-
-
-/*
  * Copyright (c) 2018, Sensirion AG
  * All rights reserved.
  *
@@ -70,50 +29,54 @@ void sensirion_i2c_hal_sleep_usec(uint32_t useconds) {
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "sensirion_i2c_hal.h"
-#include "sensirion_common.h"
-#include "i2c_simple_master.h"
-#include <stdint.h>
-#include <stddef.h>
-#include "FreeRTOS.h"
-#include "task.h"
+#include <nrf_delay.h>
+#include <nrf_drv_twi.h>
+#include <stdio.h>
 
-/*
- * INSTRUCTIONS
- * ============
- *
- * Implement all functions where they are marked as IMPLEMENT.
- * Follow the function specification in the comments.
- */
+#include "sensirion_common.h"
+#include "sensirion_config.h"
+#include "sensirion_i2c_hal.h"
 
 /**
- * Select the current i2c bus by index.
- * All following i2c operations will be directed at that bus.
- *
- * THE IMPLEMENTATION IS OPTIONAL ON SINGLE-BUS SETUPS (all sensors on the same
- * bus)
- *
- * @param bus_idx   Bus index to select
- * @returns         0 on success, an error code otherwise
+ * Nordic specific configuration. Change the pin numbers if you use other pins
+ * than defined below.
  */
-int16_t sensirion_i2c_hal_select_bus(uint8_t bus_idx) {
-    (void)bus_idx;
-    return 0;
-}
+#define SENSIRION_SDA_PIN 0
+#define SENSIRION_SCL_PIN 2
+
+/**
+ * Create new TWI instance. You may also use a different interface. In this
+ * case, please adapt the code below.
+ */
+static const nrf_drv_twi_t i2c_instance = NRF_DRV_TWI_INSTANCE(0);
 
 /**
  * Initialize all hard- and software components that are needed for the I2C
  * communication.
  */
 void sensirion_i2c_hal_init(void) {
-    /* TODO:IMPLEMENT */
+    int8_t err;
+    const nrf_drv_twi_config_t i2c_instance_config = {.scl = SENSIRION_SCL_PIN,
+                                                      .sda = SENSIRION_SDA_PIN,
+                                                      .frequency =
+                                                          NRF_TWI_FREQ_100K,
+                                                      .interrupt_priority = 0};
+    /* initiate TWI instance */
+    err = nrf_drv_twi_init(&i2c_instance, &i2c_instance_config, NULL, NULL);
+    if (err) {
+        /* Could be omitted if the prototyp is changed to non-void or an error
+         * flag is introduced */
+        printf("Error %d: Initialization of I2C connection failed!\n", err);
+    }
+    /* enable TWI instance */
+    nrf_drv_twi_enable(&i2c_instance);
+    return;
 }
 
 /**
  * Release all resources initialized by sensirion_i2c_hal_init().
  */
 void sensirion_i2c_hal_free(void) {
-    /* TODO:IMPLEMENT or leave empty if no resources need to be freed */
 }
 
 /**
@@ -125,13 +88,13 @@ void sensirion_i2c_hal_free(void) {
  * @param data    pointer to the buffer where the data is to be stored
  * @param count   number of bytes to read from I2C and store in the buffer
  * @returns 0 on success, error code otherwise
+ *
+ * error codes:  3 -> error detected by hardware (internal error)
+ *              17 -> driver not ready for new transfer (busy)
  */
-int8_t sensirion_i2c_hal_read(uint8_t address, uint8_t* data, uint16_t count) {
-    if (data == NULL || count == 0)
-        return -1;
-
-    i2c_readNBytes(address, data, count);
-    return 0;
+int8_t sensirion_i2c_hal_read(uint8_t address, uint8_t* data, uint8_t count) {
+    int8_t err = nrf_drv_twi_rx(&i2c_instance, address, data, count);
+    return err;
 }
 
 /**
@@ -144,23 +107,22 @@ int8_t sensirion_i2c_hal_read(uint8_t address, uint8_t* data, uint16_t count) {
  * @param data    pointer to the buffer containing the data to write
  * @param count   number of bytes to read from the buffer and send over I2C
  * @returns 0 on success, error code otherwise
+ *
+ * error codes:  3 -> error detected by hardware (internal error)
+ *              17 -> driver not ready for new transfer (busy)
  */
-int8_t sensirion_i2c_hal_write(uint8_t address, const uint8_t* data, uint16_t count) {
-    if (data == NULL || count == 0)
-        return -1;
-
-    i2c_writeNBytes(address, (void*)data, count);
-    return 0;
+int8_t sensirion_i2c_hal_write(uint8_t address, const uint8_t* data,
+                               uint8_t count) {
+    int8_t err = nrf_drv_twi_tx(&i2c_instance, address, data, count, false);
+    return err;
 }
 
 /**
  * Sleep for a given number of microseconds. The function should delay the
  * execution for at least the given time, but may also sleep longer.
  *
- * Despite the unit, a <10 millisecond precision is sufficient.
- *
  * @param useconds the sleep time in microseconds
  */
 void sensirion_i2c_hal_sleep_usec(uint32_t useconds) {
-    vTaskDelay(pdMS_TO_TICKS((useconds+999)/1000));
+    nrf_delay_us(useconds);
 }

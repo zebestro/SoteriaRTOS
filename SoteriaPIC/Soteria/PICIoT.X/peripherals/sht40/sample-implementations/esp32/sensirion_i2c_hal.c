@@ -1,46 +1,5 @@
 /*
-#include "sensirion_i2c_hal.h"
-#include "sensirion_common.h"
-#include "i2c_simple_master.h"
-#include <stdint.h>
-#include <stddef.h>
-#include "FreeRTOS.h"
-#include "task.h"
-
-
-int16_t sensirion_i2c_hal_select_bus(uint8_t bus_idx) {
-    (void)bus_idx;
-    return 0;
-}
-
-void sensirion_i2c_hal_init(void) {}
-
-void sensirion_i2c_hal_free(void) {}
-
-int8_t sensirion_i2c_hal_write(uint8_t address, const uint8_t* data, uint16_t count) {
-    if (data == NULL || count == 0)
-        return -1;
-
-    i2c_writeNBytes(address, (void*)data, count);
-    return 0;
-}
-
-int8_t sensirion_i2c_hal_read(uint8_t address, uint8_t* data, uint16_t count) {
-    if (data == NULL || count == 0)
-        return -1;
-
-    i2c_readNBytes(address, data, count);
-    return 0;
-}
-
-void sensirion_i2c_hal_sleep_usec(uint32_t useconds) {
-    vTaskDelay(pdMS_TO_TICKS((useconds+999)/1000));
-}
-*/
-
-
-/*
- * Copyright (c) 2018, Sensirion AG
+ * Copyright (c) 2023, Sensirion AG
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -72,11 +31,35 @@ void sensirion_i2c_hal_sleep_usec(uint32_t useconds) {
 
 #include "sensirion_i2c_hal.h"
 #include "sensirion_common.h"
-#include "i2c_simple_master.h"
-#include <stdint.h>
-#include <stddef.h>
-#include "FreeRTOS.h"
-#include "task.h"
+#include "sensirion_config.h"
+
+#include <esp_log.h>
+#include <freertos/FreeRTOS.h>
+#include <freertos/task.h>
+#include <string.h>
+
+#include "sensirion_i2c_esp32_config.h"
+
+static const char* TAG = "sensirion_i2c_hal";
+
+#define SLEEP_MS(x) \
+    vTaskDelay(((x) + portTICK_PERIOD_MS - 1) / portTICK_PERIOD_MS)
+#define CHECK(x)                \
+    do {                        \
+        esp_err_t __;           \
+        if ((__ = x) != ESP_OK) \
+            return __;          \
+    } while (0)
+#define CHECK_ARG(VAL)                  \
+    do {                                \
+        if (!(VAL))                     \
+            return ESP_ERR_INVALID_ARG; \
+    } while (0)
+#define UNUSED_PARAM(x) (void)x
+
+static i2c_dev_t dev = {0};
+static struct esp32_i2c_config i2c_cfg = {0};
+static esp_err_t i2c_ok = ESP_OK;
 
 /*
  * INSTRUCTIONS
@@ -97,8 +80,23 @@ void sensirion_i2c_hal_sleep_usec(uint32_t useconds) {
  * @returns         0 on success, an error code otherwise
  */
 int16_t sensirion_i2c_hal_select_bus(uint8_t bus_idx) {
-    (void)bus_idx;
-    return 0;
+    /* TODO:IMPLEMENT or leave empty if all sensors are located on one single
+     * bus
+     */
+    return NOT_IMPLEMENTED_ERROR;
+}
+
+esp_err_t sensirion_i2c_config_esp32(struct esp32_i2c_config* cfg) {
+    if (cfg != NULL) {
+        memcpy(&i2c_cfg, cfg, sizeof(*cfg));
+        return ESP_OK;
+    } else {
+        return ESP_FAIL;
+    }
+}
+
+esp_err_t sensirion_i2c_esp32_ok(void) {
+    return i2c_ok;
 }
 
 /**
@@ -106,14 +104,38 @@ int16_t sensirion_i2c_hal_select_bus(uint8_t bus_idx) {
  * communication.
  */
 void sensirion_i2c_hal_init(void) {
-    /* TODO:IMPLEMENT */
+    memset(&dev, 0, sizeof(i2c_dev_t));
+    // dev.addr = addr;
+    dev.port = i2c_cfg.port;
+    dev.cfg.mode = I2C_MODE_MASTER;
+    dev.cfg.sda_io_num = i2c_cfg.sda;
+    dev.cfg.scl_io_num = i2c_cfg.scl;
+    dev.cfg.sda_pullup_en = i2c_cfg.sda_pullup;
+    dev.cfg.scl_pullup_en = i2c_cfg.scl_pullup;
+#if HELPER_TARGET_IS_ESP32
+    dev.cfg.master.clk_speed = i2c_cfg.freq;
+#endif
+
+    esp_err_t err = i2c_dev_create_mutex(&dev);
+    if (err == ESP_OK) {
+        ESP_LOGI(
+            TAG,
+            "Sensirion I2C initialized. Address: 0x%x Port: %d SDA: %d SCL: %d",
+            i2c_cfg.addr, i2c_cfg.port, i2c_cfg.sda, i2c_cfg.scl);
+    } else {
+        ESP_LOGE(TAG,
+                 "Error initializing Sensirion I2C! Address: 0x%x Port: %d "
+                 "SDA: %d SCL: %d",
+                 i2c_cfg.addr, i2c_cfg.port, i2c_cfg.sda, i2c_cfg.scl);
+    }
+
+    i2c_ok = err;
 }
 
 /**
  * Release all resources initialized by sensirion_i2c_hal_init().
  */
 void sensirion_i2c_hal_free(void) {
-    /* TODO:IMPLEMENT or leave empty if no resources need to be freed */
 }
 
 /**
@@ -127,11 +149,13 @@ void sensirion_i2c_hal_free(void) {
  * @returns 0 on success, error code otherwise
  */
 int8_t sensirion_i2c_hal_read(uint8_t address, uint8_t* data, uint16_t count) {
-    if (data == NULL || count == 0)
-        return -1;
-
-    i2c_readNBytes(address, data, count);
-    return 0;
+    ESP_LOGI(TAG, "sensirion_i2c_hal_read: len: %d", count);
+    dev.addr = address;
+    I2C_DEV_TAKE_MUTEX(&dev);
+    I2C_DEV_CHECK(&dev, i2c_dev_read(&dev, NULL, 0, data, count));
+    I2C_DEV_GIVE_MUTEX(&dev);
+    ESP_LOGI(TAG, "READ OK");
+    return (int8_t)ESP_OK;
 }
 
 /**
@@ -145,12 +169,15 @@ int8_t sensirion_i2c_hal_read(uint8_t address, uint8_t* data, uint16_t count) {
  * @param count   number of bytes to read from the buffer and send over I2C
  * @returns 0 on success, error code otherwise
  */
-int8_t sensirion_i2c_hal_write(uint8_t address, const uint8_t* data, uint16_t count) {
-    if (data == NULL || count == 0)
-        return -1;
-
-    i2c_writeNBytes(address, (void*)data, count);
-    return 0;
+int8_t sensirion_i2c_hal_write(uint8_t address, const uint8_t* data,
+                               uint16_t count) {
+    ESP_LOGI(TAG, "sensirion_i2c_hal_write: len: %d", count);
+    dev.addr = address;
+    I2C_DEV_TAKE_MUTEX(&dev);
+    I2C_DEV_CHECK(&dev, i2c_dev_write(&dev, NULL, 0, data, count));
+    I2C_DEV_GIVE_MUTEX(&dev);
+    ESP_LOGI(TAG, "WRITE OK");
+    return (int8_t)ESP_OK;
 }
 
 /**
@@ -162,5 +189,6 @@ int8_t sensirion_i2c_hal_write(uint8_t address, const uint8_t* data, uint16_t co
  * @param useconds the sleep time in microseconds
  */
 void sensirion_i2c_hal_sleep_usec(uint32_t useconds) {
-    vTaskDelay(pdMS_TO_TICKS((useconds+999)/1000));
+    ESP_LOGI(TAG, "sensirion_i2c_hal_sleep: %d usec", useconds);
+    SLEEP_MS(useconds / 1000);
 }
