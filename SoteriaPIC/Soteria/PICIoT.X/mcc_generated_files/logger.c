@@ -181,6 +181,7 @@ void vSomeTask(void *pvParameters)
 }
 */
 
+/*
 #include "sgp40_i2c.h"
 #include "logger.h"
 
@@ -206,5 +207,88 @@ void vSomeTask(void *pvParameters)
         vTaskDelay(pdMS_TO_TICKS(1000)); // ????????? ?????? ???????
     }
 }
+*/
+
+
+
+
+#include "sht4x_i2c.h"
+#include "logger.h"
+
+void vSomeTask(void *pvParameters)
+{
+    (void)pvParameters;
+
+    logger_printf("==== SHT40 TASK START ====");
+
+    int32_t temperature_mC = 0;
+    int32_t humidity_mRH   = 0;
+
+    // ---------- INIT ----------
+    logger_printf("[INIT] Setting I2C address...");
+    sht4x_init(SHT40_I2C_ADDR_45);
+    logger_printf("[INIT] Address set: 0x45");
+
+    // ---------- RESET ----------
+    logger_printf("[INIT] Performing soft reset...");
+    int16_t ret = sht4x_soft_reset();
+    //int16_t ret = 0;
+
+    if(ret != 0)
+        logger_printf("[INIT] Soft reset FAILED (%d)", ret);
+    else
+        logger_printf("[INIT] Soft reset OK");
+
+    logger_printf("[INIT] Waiting sensor recovery...");
+    vTaskDelay(pdMS_TO_TICKS(10));
+
+    uint32_t cycle = 0;
+
+    while(1)
+    {
+        cycle++;
+        logger_printf("\n--- Measurement cycle #%lu ---", cycle);
+
+        // Clear buffers
+        temperature_mC = 0;
+        humidity_mRH   = 0;
+
+        logger_printf("[MEASURE] Sending high precision command...");
+
+        ret = sht4x_measure_high_precision(&temperature_mC, &humidity_mRH);
+
+        logger_printf("[MEASURE] Return code: %d", ret);
+
+        if(ret != 0)
+        {
+            logger_printf("[ERROR] Measurement failed");
+        }
+        else
+        {
+            // RAW values
+            logger_printf("[RAW] Temp mC: %ld", temperature_mC);
+            logger_printf("[RAW] Hum  mRH: %ld", humidity_mRH);
+
+            // Human readable
+            logger_printf(
+                "[DATA] Temp: %ld.%03ld C",
+                temperature_mC / 1000,
+                labs(temperature_mC) % 1000
+            );
+
+            logger_printf(
+                "[DATA] Hum : %ld.%03ld %%RH",
+                humidity_mRH / 1000,
+                labs(humidity_mRH) % 1000
+            );
+        }
+
+        logger_printf("[TASK] Sleeping 1000 ms...");
+        vTaskDelay(pdMS_TO_TICKS(1000));
+    }
+}
+
+
+
 
 
