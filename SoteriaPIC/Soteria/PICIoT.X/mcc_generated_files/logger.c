@@ -211,7 +211,7 @@ void vSomeTask(void *pvParameters)
 
 
 
-
+/*
 #include "sht4x_i2c.h"
 #include "logger.h"
 
@@ -287,8 +287,138 @@ void vSomeTask(void *pvParameters)
         vTaskDelay(pdMS_TO_TICKS(1000));
     }
 }
+*/
 
 
 
+#include "scd4x_i2c.h"
+#include "logger.h"
+
+
+void vSomeTask(void *pvParameters)
+{
+    logger_printf("\n========== SCD4x TASK START ==========");
+
+    int16_t ret;
+    uint16_t co2;
+    int32_t temp;
+    int32_t hum;
+
+    // ---------------- INIT ----------------
+    logger_printf("[INIT] scd4x_init()");
+    scd4x_init(SCD40_I2C_ADDR_62);
+
+
+    // --- Serial number ---
+    uint16_t serial[3] = {0, 0, 0};
+    logger_printf("[INIT] Empty Serial: %04X %04X %04X",
+                      serial[0], serial[1], serial[2]);
+    logger_printf("Getting serial number...");
+
+    ret = scd4x_get_serial_number(serial, 3);
+    if(ret) {
+        logger_printf("scd4x_stop_periodic_measurement(): error, return code: (%d)", ret);
+    } else {
+        logger_printf("(Performed): scd4x_stop_periodic_measurement() =====> (OK)");
+        logger_printf("[INIT] Serial: %04X %04X %04X", serial[0], serial[1], serial[2]);
+    }
+
+    
+    
+    
+    ret = scd4x_stop_periodic_measurement();
+    if(ret) {
+        logger_printf("scd4x_stop_periodic_measurement(): error, return code: (%d)", ret);
+    } else {
+        logger_printf("(Performed): scd4x_stop_periodic_measurement() =====> (OK)");
+    }
+    
+    
+    
+    
+    ret = scd4x_set_temperature_offset_raw(1495);
+    if(ret) {
+        logger_printf("scd4x_set_temperature_offset_raw(): error, return code: (%d)", ret);
+    } else {
+        logger_printf("(Performed): scd4x_set_temperature_offset_raw() =====> (OK)");
+    }
+    
+    uint16_t t = 0;
+    
+    ret = scd4x_get_temperature_offset_raw(&t);
+    if(ret) {
+        logger_printf("scd4x_get_temperature_offset_raw(): error, return code: (%d)", ret);
+    } else {
+        logger_printf("The current temperature compensation value: %d C", t);
+    }
+    
+    
+    
+    ret = scd4x_set_sensor_altitude(540);
+    if(ret) {
+        logger_printf("scd4x_set_temperature_offset_raw(): error, return code: (%d)", ret);
+    } else {
+        logger_printf("(Performed): scd4x_set_sensor_altitude() =====> (OK)");
+    }
+    
+    uint16_t a = 0;
+    
+    ret = scd4x_get_sensor_altitude(&a);
+    if(ret) {
+        logger_printf("scd4x_get_sensor_altitude(): error, return code: (%d)", ret);
+    } else {
+        logger_printf("Set the current sensor altitude: %d C", a);
+    }
+    
+
+    // --- Start measurement ---
+    ret = scd4x_start_periodic_measurement();
+    if(ret) {
+        logger_printf("scd4x_start_periodic_measurement(): error, return code: (%d)", ret);
+    } else {
+        logger_printf("(Performed): scd4x_start_periodic_measurement() =====> (OK)");
+    }
+
+    // ---------------- LOOP ----------------
+
+    uint16_t status = 0;
+    
+    while(1)
+    {
+        ret = scd4x_get_data_ready_status_raw(&status);
+
+        //logger_printf("[POLL] Ready raw: 0x%04X", status);
+
+        if(status & 0x07FF)
+        {            
+            logger_printf("[POLL] Ready raw: 0x%04X", status);
+            logger_printf("[READ] scd4x_read_measurement()");
+            ret = scd4x_read_measurement(&co2, &temp, &hum);
+
+            if(ret != 0)
+            {
+                logger_printf("[ERROR] Read failed (%d)", ret);
+            }
+            else
+            {
+                logger_printf("Carbon dioxide concentration: %u", co2);
+                logger_printf("Environment temperature: %ld.%03ld C", temp/1000, labs(temp)%1000);
+                logger_printf("Relative humidity: %ld.%03ld %%RH", hum/1000, labs(hum)%1000);
+            }
+        } else {
+            logger_printf("Waiting...");
+        }
+        
+        // ----- READ DATA -----
+        
+        
+        ret = scd4x_start_periodic_measurement();
+        if(ret) {
+            logger_printf("scd4x_start_periodic_measurement(): error, return code: (%d)", ret);
+        }
+
+        vTaskDelay(pdMS_TO_TICKS(200));
+    }
+}
 
 

@@ -172,6 +172,9 @@
         <itemPath>mcc_generated_files/logger.h</itemPath>
       </logicalFolder>
       <logicalFolder name="f1" displayName="peripherals" projectFiles="true">
+        <logicalFolder name="f4" displayName="scd40" projectFiles="true">
+          <itemPath>peripherals/scd40/scd4x_i2c.h</itemPath>
+        </logicalFolder>
         <logicalFolder name="f2" displayName="sensirion_hal" projectFiles="true">
           <itemPath>peripherals/sensirion_hal/sensirion_common.h</itemPath>
           <itemPath>peripherals/sensirion_hal/sensirion_config.h</itemPath>
@@ -390,6 +393,9 @@
         <itemPath>mcc_generated_files/logger.c</itemPath>
       </logicalFolder>
       <logicalFolder name="f1" displayName="peripherals" projectFiles="true">
+        <logicalFolder name="f4" displayName="scd40" projectFiles="true">
+          <itemPath>peripherals/scd40/scd4x_i2c.c</itemPath>
+        </logicalFolder>
         <logicalFolder name="f2" displayName="sensirion_hal" projectFiles="true">
           <itemPath>peripherals/sensirion_hal/sensirion_common.c</itemPath>
           <itemPath>peripherals/sensirion_hal/sensirion_i2c.c</itemPath>
@@ -442,6 +448,7 @@
     <Elem>peripherals/sgp40</Elem>
     <Elem>peripherals/sht40</Elem>
     <Elem>peripherals/sensirion_hal</Elem>
+    <Elem>peripherals/scd40</Elem>
   </sourceRootList>
   <projectmakefile>Makefile</projectmakefile>
   <confs>
@@ -605,7 +612,7 @@
       <C30Global>
         <property key="combine-sourcefiles" value="false"/>
         <property key="common-include-directories"
-                  value="mcc_generated_files/config;mcc_generated_files/winc;mcc_generated_files/drivers;mcc_generated_files;mcc_generated_files/CryptoAuthenticationLibrary;peripherals/sgp40;peripherals/sht40;peripherals/sensirion_hal"/>
+                  value="mcc_generated_files/config;mcc_generated_files/winc;mcc_generated_files/drivers;mcc_generated_files;mcc_generated_files/CryptoAuthenticationLibrary;peripherals/sgp40;peripherals/sht40;peripherals/scd40;peripherals/sensirion_hal"/>
         <property key="dual-boot-partition" value="0"/>
         <property key="fast-math" value="false"/>
         <property key="generic-16-bit" value="false"/>

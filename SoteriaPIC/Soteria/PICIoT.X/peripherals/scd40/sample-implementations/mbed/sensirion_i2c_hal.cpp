@@ -31,48 +31,26 @@
 
 #include "sensirion_i2c_hal.h"
 #include "sensirion_common.h"
-#include "i2c_simple_master.h"
-#include <stdint.h>
-#include <stddef.h>
-#include "FreeRTOS.h"
-#include "task.h"
+#include "sensirion_config.h"
+#include <mbed.h>
 
-/*
- * INSTRUCTIONS
- * ============
- *
- * Implement all functions where they are marked as IMPLEMENT.
- * Follow the function specification in the comments.
- */
+#define E_MBED_I2C_READ_FAILED -1
+#define E_MBED_I2C_WRITE_FAILED -1
 
-/**
- * Select the current i2c bus by index.
- * All following i2c operations will be directed at that bus.
- *
- * THE IMPLEMENTATION IS OPTIONAL ON SINGLE-BUS SETUPS (all sensors on the same
- * bus)
- *
- * @param bus_idx   Bus index to select
- * @returns         0 on success, an error code otherwise
- */
-int16_t sensirion_i2c_hal_select_bus(uint8_t bus_idx) {
-    (void)bus_idx;
-    return 0;
-}
+/* open I2C connection */
+static I2C i2c_connection(I2C_SDA, I2C_SCL);
 
 /**
  * Initialize all hard- and software components that are needed for the I2C
  * communication.
  */
 void sensirion_i2c_hal_init(void) {
-    /* TODO:IMPLEMENT */
 }
 
 /**
  * Release all resources initialized by sensirion_i2c_hal_init().
  */
 void sensirion_i2c_hal_free(void) {
-    /* TODO:IMPLEMENT or leave empty if no resources need to be freed */
 }
 
 /**
@@ -85,11 +63,9 @@ void sensirion_i2c_hal_free(void) {
  * @param count   number of bytes to read from I2C and store in the buffer
  * @returns 0 on success, error code otherwise
  */
-int8_t sensirion_i2c_hal_read(uint8_t address, uint8_t* data, uint16_t count) {
-    if (data == NULL || count == 0)
-        return -1;
-
-    i2c_readNBytes(address, data, count);
+int8_t sensirion_i2c_hal_read(uint8_t address, uint8_t* data, uint8_t count) {
+    if (i2c_connection.read(address << 1, (char*)data, count) != 0)
+        return E_MBED_I2C_READ_FAILED;
     return 0;
 }
 
@@ -104,11 +80,10 @@ int8_t sensirion_i2c_hal_read(uint8_t address, uint8_t* data, uint16_t count) {
  * @param count   number of bytes to read from the buffer and send over I2C
  * @returns 0 on success, error code otherwise
  */
-int8_t sensirion_i2c_hal_write(uint8_t address, const uint8_t* data, uint16_t count) {
-    if (data == NULL || count == 0)
-        return -1;
-
-    i2c_writeNBytes(address, (void*)data, count);
+int8_t sensirion_i2c_hal_write(uint8_t address, const uint8_t* data,
+                               uint8_t count) {
+    if (i2c_connection.write(address << 1, (char*)data, count) != 0)
+        return E_MBED_I2C_WRITE_FAILED;
     return 0;
 }
 
@@ -116,10 +91,8 @@ int8_t sensirion_i2c_hal_write(uint8_t address, const uint8_t* data, uint16_t co
  * Sleep for a given number of microseconds. The function should delay the
  * execution for at least the given time, but may also sleep longer.
  *
- * Despite the unit, a <10 millisecond precision is sufficient.
- *
  * @param useconds the sleep time in microseconds
  */
 void sensirion_i2c_hal_sleep_usec(uint32_t useconds) {
-    vTaskDelay(pdMS_TO_TICKS((useconds+999)/1000));
+    wait_us(useconds);
 }
