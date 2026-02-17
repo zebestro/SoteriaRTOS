@@ -224,12 +224,11 @@ void vCloudTask(void *pvParameters)
 
     for(;;)
     {
-        debug_printInfo("CLOUD task LOG!");
+        //debug_printInfo("CLOUD task LOG!");
         if ((cloudStatus.cloudInitialized == false) && (cloudStatus.isResetting == false))
         {
             //cloudContext.cloudInit(&mqttTimeoutTaskTimer, &cloudResetTaskTimer);     
             cloudContext.cloudInit();
-            debug_printInfo("CLOUD will be initialized <<<=== LOG!");
         } 
         else if ((cloudStatus.waitingForMQTT == false)
                  && (!cloudContext.cloudIsConnected())
@@ -241,15 +240,15 @@ void vCloudTask(void *pvParameters)
         if(hasLostWifi()) 
         {
             setMqttStateToDisconnected();
-            debug_printError("Wifi connection lost...");
+            //debug_printError("Wifi connection lost...");
         }
         else
         {
             handleSocketConnection();
-            debug_printInfo("CLOUD: Handling socket connection");
+            //debug_printInfo("CLOUD: Handling socket connection");
         }
 
-        vTaskDelay(pdMS_TO_TICKS(1000));
+        vTaskDelay(pdMS_TO_TICKS(CLOUD_TASK_INTERVAL));
     }
 }
 
@@ -474,62 +473,6 @@ static void dnsHandler(uint8_t* domainName, uint32_t serverIP)
 }
 
 static uint8_t reInit(void)
-{
-    debug_printInfo("CLOUD: reinit");
-    
-    mqttBrokerIP = 0;
-    shared_networking_params.haveAPConnection = 0;
-    shared_networking_params.amConnectingAP = 1;
-    cloudStatus.waitingForMQTT = false;
-    cloudStatus.isResetting = false;
-    uint8_t wifi_creds;
-    
-    //Re-init the WiFi
-    wifi_reinit();
-    
-    registerSocketCallback(BSD_SocketHandler, dnsHandler);
-    
-    MQTT_ClientInitialise();
-    memset(&cloud_packetReceiveCallBackTable, 0, sizeof(cloud_packetReceiveCallBackTable));
-    BSD_SetRecvHandlerTable(cloud_packetReceiveCallBackTable);
-    
-    cloud_packetReceiveCallBackTable[0].socket = MQTT_GetClientConnectionInfo()->tcpClientSocket;
-    cloud_packetReceiveCallBackTable[0].recvCallBack = MQTT_CLIENT_receive;
-    
-    //When the input comes through cli/.cfg
-    if((strcmp(ssid,"") != 0) &&  (strcmp(authType,"") != 0))
-    {
-        wifi_creds = NEW_CREDENTIALS;
-        debug_printInfo("Connecting to AP with new credentials");
-    }
-    //This works provided the board had connected to the AP successfully	
-    else 
-    {
-        wifi_creds = DEFAULT_CREDENTIALS;
-        debug_printInfo("Connecting to AP with the last used credentials");
-    }
-	
-    if(!wifi_connectToAp(wifi_creds))
-    {
-        return false;
-    }
-	
-    //timeout_delete(&cloudResetTaskTimer);
-    xTimerStop(cloudResetTimer, 0);
-    
-    debug_printInfo("CLOUD: Cloud reset timer is deleted");
-    
-    //timeout_create(&mqttTimeoutTaskTimer, CLOUD_MQTT_TIMEOUT_COUNT);
-    xTimerStop(mqttTimeoutTimer, 0);
-    xTimerChangePeriod(mqttTimeoutTimer, pdMS_TO_TICKS(CLOUD_MQTT_TIMEOUT_COUNT), 0);
-    xTimerStart(mqttTimeoutTimer, 0);
-    cloudStatus.cloudResetTimerFlag = false;
-    cloudStatus.waitingForMQTT = true;		
-    
-    return true;
-}
-
-static uint8_t pseudo_reInit(void)
 {
     debug_printInfo("CLOUD: reinit");
     

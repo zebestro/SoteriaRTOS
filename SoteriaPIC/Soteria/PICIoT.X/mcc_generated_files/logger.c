@@ -19,9 +19,6 @@ static StackType_t xSomeTaskStack[512];
 static StaticTask_t xLoggerTaskTCB;
 static StackType_t xLoggerTaskStack[256];
 
-static StaticTask_t xSGPTaskTCB;
-static StackType_t xSGPTaskStack[SGP_TASK_STACK_SIZE];
-
 
 static uint8_t buffer[LOGGER_MESSAGE_SIZE];
 static volatile bool dmaBusy = false;
@@ -62,7 +59,7 @@ QueueHandle_t xStartLoggerTask( void )
         uartInit();     
         
         xTaskCreateStatic(vSomeTask, "Task", 512, NULL, tskIDLE_PRIORITY + 1, xSomeTaskStack, &xSomeTaskTCB);
-        //SENSOR_DATA_init();
+        SENSOR_DATA_init();
         //xTaskCreateStatic(vSGPTask, "SGP", 512, NULL, tskIDLE_PRIORITY + 1, xSGPTaskStack, &xSGPTaskTCB);
         xTaskCreateStatic(vLoggerTask, "Log", 256, NULL, tskIDLE_PRIORITY + 1, xLoggerTaskStack, &xLoggerTaskTCB);
         return xLoggerQueue;
@@ -448,7 +445,7 @@ void vSomeTask(void *pvParameters)
     {
         
         mainDataTask();
-        vTaskDelay(pdMS_TO_TICKS(1000));
+        vTaskDelay(pdMS_TO_TICKS(100));
     }
 }
 

@@ -44,6 +44,7 @@ SOFTWARE.
 #include "../mcc_generated_files/sensors_handling.h"
 #include "credentials_storage/credentials_storage.h"
 #include "led.h"
+#include "sensors.h"
 #include "debug_print.h"
 #include "time_service.h"
 #include "FreeRTOS.h"
@@ -100,20 +101,27 @@ static void sendToCloud(void)
 {
     static char json[PAYLOAD_SIZE];
     static char publishMqttTopic[PUBLISH_TOPIC_SIZE];
-    int rawTemperature = 0;
-    int light = 0;
+    //int rawTemperature = 0;
+    //int light = 0;
+    sensorData_t sensorData;
     int len = 0;    
     memset((void*)publishMqttTopic, 0, sizeof(publishMqttTopic));
     sprintf(publishMqttTopic, "%s/sensors", cid);
     // This part runs every CFG_SEND_INTERVAL seconds
     if (shared_networking_params.haveAPConnection)
     {
-        rawTemperature = SENSORS_getTempValue();
-        light = SENSORS_getLightValue();
-        len = sprintf(json,"{\"Light\":%d,\"Temp\":%d.%02d,\"Hum\":%d}", light,rawTemperature/100,abs(rawTemperature)%100, 20);
+        //int rawTemperature = SENSORS_getTempValue();
+        //int light = SENSORS_getLightValue();
+        //len = sprintf(json,"{\"Light\":%d,\"Temp\":%d.%02d,\"Hum\":%d}", light,rawTemperature/100,abs(rawTemperature)%100, 20);
+        if (SENSOR_DATA_getSnapshot(&sensorData)) {
+            len = SENSOR_DATA_snapshotToJson(&sensorData, json, sizeof(json));
+        } else {
+            debug_print("Data not ready...((");
+        }
     }
     if (len >0) 
     {
+        //debug_print("Packet Info(JSON): %s", json);
         CLOUD_publishData((uint8_t*)publishMqttTopic ,(uint8_t*)json, len);        
         if (holdCount)
         {
@@ -531,13 +539,13 @@ void vMainDataTask(void *pvParameters)
 
 void mainDataTask()
 {
-    debug_printInfo("MAIN Step LOG!");
+    //debug_printInfo("MAIN Step LOG!");
     uint32_t timeNow = TIME_getCurrent();
 
     if (CLOUD_checkIsConnected())
     {
         sendToCloud();
-        debug_print("Data sent to cloud");
+        //debug_print("Data sent to cloud");
     }
     else
     {

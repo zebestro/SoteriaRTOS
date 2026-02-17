@@ -983,7 +983,6 @@ int8_t m2m_wifi_connect_sc(char *pcSsid, uint8_t u8SsidLen, uint8_t u8SecType, v
                 strAuthPsk.pu8Passphrase   = (uint8_t*)pvAuthInfo;
                 strAuthPsk.u8PassphraseLen = (uint8_t)len;
             }
-            debug_print("Here log!!!!=====>>>");
             s8Ret = m2m_wifi_connect_psk(enuCredStoreOption, &strNetworkId, &strAuthPsk);
         }
         break;

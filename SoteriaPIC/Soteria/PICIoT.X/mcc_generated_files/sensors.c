@@ -1,3 +1,5 @@
+#include <string.h>
+#include <stdio.h>
 #include "sensors.h"
 #include "debug_print.h"
 #include "sgp40_i2c.h"
@@ -29,118 +31,159 @@ void SENSOR_DATA_init(void)
         return;
     }
     
-    //xTaskCreateStatic(vSGPTask, "SGP", SGP_TASK_STACK_SIZE, NULL, tskIDLE_PRIORITY + 1, xSGPTaskStack, &xSGPTaskTCB);
     xTaskCreateStatic(vSensorsTask, "SNRS", SENSORS_TASK_STACK_SIZE, NULL, tskIDLE_PRIORITY + 1, xSensorsTaskStack, &xSensorsTaskTCB);
 
-    sensorData.temperature_mC = 0;
-    sensorData.humidity_mRH = 0;
-    sensorData.light = 0;
-    sensorData.co2 = 0;
-    sensorData.voc = 0;
-    sensorData.valid = false;
+    sensorData.sgp40_raw_voc = 0;
+    sensorData.sht40_raw_temp = 0;
+    sensorData.sht40_raw_hum = 0;
+    sensorData.scd40_raw_co2 = 0;
+    sensorData.scd40_raw_temp = 0;
+    sensorData.scd40_raw_hum = 0;
+    sensorData.mcp9808_raw_temp = 0;
+    sensorData.temt6000_raw_light = 0;
 }
 
-void SENSOR_DATA_updateTemperature(int32_t temp_mC)
+static void SENSOR_DATA_updateVocSGP40(uint16_t raw_voc)
 {
     if(xSemaphoreTake(sensorMutex, pdMS_TO_TICKS(10)) == pdTRUE)
     {
-        sensorData.temperature_mC = temp_mC;
-        sensorData.valid = true;
+        sensorData.sgp40_raw_voc = raw_voc;
         xSemaphoreGive(sensorMutex);
     }
 }
 
-void SENSOR_DATA_updateHumidity(int32_t hum_mRH)
+static void SENSOR_DATA_updateTemperatureSHT40(int32_t raw_temp)
 {
     if(xSemaphoreTake(sensorMutex, pdMS_TO_TICKS(10)) == pdTRUE)
     {
-        sensorData.humidity_mRH = hum_mRH;
-        sensorData.valid = true;
+        sensorData.sht40_raw_temp = raw_temp;
         xSemaphoreGive(sensorMutex);
     }
 }
 
-void SENSOR_DATA_updateCO2(uint16_t co2)
+static void SENSOR_DATA_updateHumiditySHT40(int32_t raw_hum)
 {
     if(xSemaphoreTake(sensorMutex, pdMS_TO_TICKS(10)) == pdTRUE)
     {
-        sensorData.co2 = co2;
-        sensorData.valid = true;
+        sensorData.sht40_raw_hum = raw_hum;
         xSemaphoreGive(sensorMutex);
     }
 }
 
-void SENSOR_DATA_updateVOC(uint16_t voc)
+static void SENSOR_DATA_updateCo2SCD40(uint16_t raw_co2)
 {
     if(xSemaphoreTake(sensorMutex, pdMS_TO_TICKS(10)) == pdTRUE)
     {
-        sensorData.voc = voc;
-        sensorData.valid = true;
+        sensorData.scd40_raw_co2 = raw_co2;
         xSemaphoreGive(sensorMutex);
     }
 }
 
-void SENSOR_DATA_updateLight(uint16_t light)
+static void SENSOR_DATA_updateTemperatureSCD40(int32_t raw_temp)
 {
     if(xSemaphoreTake(sensorMutex, pdMS_TO_TICKS(10)) == pdTRUE)
     {
-        sensorData.light = light;
-        sensorData.valid = true;
+        sensorData.scd40_raw_temp = raw_temp;
         xSemaphoreGive(sensorMutex);
     }
 }
 
-sensorData_t SENSOR_DATA_getSnapshot(void)
+static void SENSOR_DATA_updateHumiditySCD40(int32_t raw_hum)
 {
-    sensorData_t snapshot;
     if(xSemaphoreTake(sensorMutex, pdMS_TO_TICKS(10)) == pdTRUE)
     {
-        snapshot = sensorData;
+        sensorData.scd40_raw_hum = raw_hum;
         xSemaphoreGive(sensorMutex);
     }
-    else
-    {
-        snapshot.valid = false;
-    }
-    return snapshot;
 }
 
-
-// ================= TASKS =================
-
-void vSGPTask(void *pvParameters)
+static void SENSOR_DATA_updateTemperatureMCP9808(int32_t raw_temp)
 {
-    (void)pvParameters;
-    debug_print("SGP Task Started!");
-    uint16_t sraw_voc = 0;
-
-    uint16_t t_sgp40  = 0x8000;
-    uint16_t rh_sgp40 = 0x8000;
-
-    while(1)
+    if(xSemaphoreTake(sensorMutex, pdMS_TO_TICKS(10)) == pdTRUE)
     {
-        int16_t ret = sgp40_measure_raw_signal(rh_sgp40, t_sgp40, &sraw_voc);
-        if(ret != 0) {
-            debug_printError("SGP40: Failed to read VOC signal! Error: %d", ret);
-        } else {
-            debug_printInfo("SGP40 VOC raw: %d", sraw_voc);
-        }
-
-        vTaskDelay(pdMS_TO_TICKS(200));
+        sensorData.mcp9808_raw_temp = raw_temp;
+        xSemaphoreGive(sensorMutex);
     }
 }
 
+static void SENSOR_DATA_updateLightTEMT6000(uint16_t raw_light)
+{
+    if(xSemaphoreTake(sensorMutex, pdMS_TO_TICKS(10)) == pdTRUE)
+    {
+        sensorData.temt6000_raw_light = raw_light;
+        xSemaphoreGive(sensorMutex);
+    }
+}
 
+bool SENSOR_DATA_getSnapshot(sensorData_t *out)
+{
+    if (xSemaphoreTake(sensorMutex, pdMS_TO_TICKS(10)) == pdTRUE)
+    {
+        *out = sensorData;
+        xSemaphoreGive(sensorMutex);
+        return true;
+    }
 
+    return false;
+}
+
+int SENSOR_DATA_snapshotToJson(const sensorData_t *s, char *json, size_t jsonSize)
+{
+    if (!s || !json)
+        return 0;
+
+    int len = snprintf(
+        json,
+        jsonSize,
+        "{"
+        "\"VOC (SGP40)\":%u,"
+        "\"Temp (SHT40)\":%ld.%03ld,"
+        "\"Hum (SHT40)\":%ld.%03ld,"
+        "\"CO2 (SCD40)\":%u,"
+        "\"Temp (SCD40)\":%ld.%03ld,"
+        "\"Hum (SCD40)\":%ld.%03ld,"
+        "\"Temp (MCP9808)\":%ld.%03ld,"
+        "\"Light (TEMT6000)\":%u"
+        "}",
+        
+        s->sgp40_raw_voc,
+
+        s->sht40_raw_temp / 1000,
+        labs(s->sht40_raw_temp) % 1000,
+
+        s->sht40_raw_hum / 1000,
+        labs(s->sht40_raw_hum) % 1000,
+
+        s->scd40_raw_co2,
+
+        s->scd40_raw_temp / 1000,
+        labs(s->scd40_raw_temp) % 1000,
+
+        s->scd40_raw_hum / 1000,
+        labs(s->scd40_raw_hum) % 1000,
+
+        s->mcp9808_raw_temp / 100,
+        labs(s->mcp9808_raw_temp) % 100,
+
+        s->temt6000_raw_light
+    );
+
+    if (len < 0 || len >= jsonSize)
+        return 0;
+
+    return len;
+}
 
 
 void vSensorsTask(void *pvParameters)
 {
-    //application_init();
     (void)pvParameters;
     
+    int mcp9808_temp = 0;
+    int temt6000_light = 0;
+    
     /* SGP Section */
-    uint16_t sgp40_raw_voc = 0;
+    uint16_t sgp40_voc = 0;
 
     uint16_t t_sgp40  = 0x8000;
     uint16_t rh_sgp40 = 0x8000;
@@ -163,9 +206,9 @@ void vSensorsTask(void *pvParameters)
     
     
     /*SCD Section */
-    uint16_t scd40_co2;
-    int32_t scd40_temp;
-    int32_t scd40_hum;
+    uint16_t scd40_co2 = 0;
+    int32_t scd40_temp = 0;
+    int32_t scd40_hum = 0;
 
     scd4x_init(SCD40_I2C_ADDR_62);
 
@@ -209,24 +252,30 @@ void vSensorsTask(void *pvParameters)
         debug_printError("scd4x_start_periodic_measurement(): error, return code: (%d)", ret);
     }
     
-    uint16_t scd40_status = 0;
-    uint8_t counter = 0;
-    
+    uint16_t scd40_status = 0;    
     
 
     while(1)
     {
+        /* MCP9808 section */
+        mcp9808_temp = SENSORS_getTempValue();
+        SENSOR_DATA_updateTemperatureMCP9808(mcp9808_temp);
+        
+        /* TEMT6000 section */
+        temt6000_light = SENSORS_getLightValue();
+        SENSOR_DATA_updateLightTEMT6000(temt6000_light);
         
         /* SHT Section */
 
         sht40_temp = 0;
         sht40_hum   = 0;
 
-         int16_t ret = sgp40_measure_raw_signal(rh_sgp40, t_sgp40, &sgp40_raw_voc);
+         int16_t ret = sgp40_measure_raw_signal(rh_sgp40, t_sgp40, &sgp40_voc);
         if(ret != 0) {
             debug_printError("SGP40: Failed to read VOC signal! Error: %d", ret);
         } else {
-            debug_printInfo("SGP40 VOC raw: %d", sgp40_raw_voc);
+            SENSOR_DATA_updateVocSGP40(sgp40_voc);
+            //debug_printInfo("SGP40 VOC raw: %d", sgp40_voc);
         }
 
          
@@ -237,15 +286,11 @@ void vSensorsTask(void *pvParameters)
         if(ret != 0)
         {
             debug_printError("[ERROR] Measurement failed");
-        }
-        
-        
-        
-        else
-        {
-            // RAW values
-            debug_print("[RAW] Temp mC: %ld", sht40_temp);
-            debug_print("[RAW] Hum  mRH: %ld", sht40_hum);
+        } else {
+            SENSOR_DATA_updateTemperatureSHT40(sht40_temp);
+            SENSOR_DATA_updateHumiditySHT40(sht40_hum);
+            //debug_print("[RAW] Temp mC: %ld", sht40_temp);
+            //debug_print("[RAW] Hum  mRH: %ld", sht40_hum);
         }
         
         
@@ -265,9 +310,12 @@ void vSensorsTask(void *pvParameters)
             }
             else
             {
-                debug_print("Carbon dioxide concentration: %u", scd40_co2);
-                debug_print("Environment temperature: %ld.%03ld C", scd40_temp/1000, labs(scd40_temp)%1000);
-                debug_print("Relative humidity: %ld.%03ld %%RH", scd40_hum/1000, labs(scd40_hum)%1000);
+                SENSOR_DATA_updateCo2SCD40(scd40_co2);
+                SENSOR_DATA_updateTemperatureSCD40(scd40_temp);
+                SENSOR_DATA_updateHumiditySCD40(scd40_hum);
+                //debug_print("Carbon dioxide concentration: %u", scd40_co2);
+                //debug_print("Environment temperature: %ld.%03ld C", scd40_temp/1000, labs(scd40_temp)%1000);
+                //debug_print("Relative humidity: %ld.%03ld %%RH", scd40_hum/1000, labs(scd40_hum)%1000);
             }
         }
         
@@ -275,13 +323,6 @@ void vSensorsTask(void *pvParameters)
         ret = scd4x_start_periodic_measurement();
         if(ret) {
             debug_print("scd4x_start_periodic_measurement(): error, return code: (%d)", ret);
-        }
-        
-        counter++;
-        
-        if (counter == 10) {
-            //mainDataTask();
-            counter = 0;
         }
 
         vTaskDelay(pdMS_TO_TICKS(100));
