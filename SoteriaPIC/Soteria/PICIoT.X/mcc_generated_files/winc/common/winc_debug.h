@@ -38,14 +38,18 @@
 #ifndef _WINC_DEBUG_H_
 #define _WINC_DEBUG_H_
 
+#include <inttypes.h>
+#include "../../debug_print.h"
+
+
 #define WINC_LOG_LEVEL_NONE                         0
 #define WINC_LOG_LEVEL_ERROR                        1
 #define WINC_LOG_LEVEL_INFO                         2
 #define WINC_LOG_LEVEL_DEBUG                        3
 
-#define WINC_LOG_ERROR(...)
-#define WINC_LOG_INFO(...)
-#define WINC_LOG_DEBUG(...)
+#define WINC_LOG_ERROR(...) debug_printError(__VA_ARGS__)
+#define WINC_LOG_INFO(...)  debug_printInfo(__VA_ARGS__)
+#define WINC_LOG_DEBUG(...) debug_print(__VA_ARGS__)
 
 #if defined(CONF_WINC_PRINTF) && defined(CONF_WINC_DEBUG_LEVEL) && (CONF_WINC_DEBUG_LEVEL > 0)
 

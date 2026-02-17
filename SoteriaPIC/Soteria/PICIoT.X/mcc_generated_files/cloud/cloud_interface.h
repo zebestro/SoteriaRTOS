@@ -11,7 +11,7 @@
 #include "../drivers/timeout.h"
 #include "mqtt_service.h"
 
-#define CLOUD_RESET_TIMEOUT            2000L   // 2 seconds
+#define CLOUD_RESET_TIMEOUT            5000L   // 2 seconds
 
 typedef union
 {
@@ -34,7 +34,8 @@ extern publishReceptionHandler_t imqtt_publishReceiveCallBackTable[];
 /** \brief Function pointer for interaction between the cloud core and user 
  * application to transition through differet cloud states.
  **/
-typedef void (*cloudInitPtr)(timerStruct_t*, timerStruct_t*); 
+//typedef void (*cloudInitPtr)(timerStruct_t*, timerStruct_t*); 
+typedef void (*cloudInitPtr)(void);
 typedef int8_t (*cloudConnectSocketPtr)(uint32_t);
 typedef void (*cloudConnectAppProtocolPtr) (void);
 typedef void (*cloudSubscribePtr) (void);
@@ -55,7 +56,8 @@ typedef struct
     cloudIsDisconnectedPtr cloudIsDisconnected;
 }cloudContext_t;
 
-void CLOUD_init(timerStruct_t* appProtocolTimeoutTaskTimer, timerStruct_t* cloudResetTaskTimer);
+//void CLOUD_init(timerStruct_t* appProtocolTimeoutTaskTimer, timerStruct_t* cloudResetTaskTimer);
+void CLOUD_init();
 int8_t CLOUD_connectSocket(uint32_t ipAddress);
 void CLOUD_connectAppProtocol(void);
 void CLOUD_subscribe(void);

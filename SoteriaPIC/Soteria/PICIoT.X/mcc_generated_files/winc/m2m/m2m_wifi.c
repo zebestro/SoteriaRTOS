@@ -44,6 +44,8 @@
 #include "../driver/winc_hif.h"
 #include "../driver/winc_drv.h"
 #include "../driver/winc_asic.h"
+#include "../../debug_print.h"
+
 
 CONF_WINC_HIF_STRUCT_SIZE_CHECK(tstrM2mPwrMode)
 CONF_WINC_HIF_STRUCT_SIZE_CHECK(tstrM2mTxPwrLevel)
@@ -727,9 +729,11 @@ int8_t m2m_wifi_connect_psk(tenuCredStoreOption enuCredStoreOption, tstrNetworkI
                 ret = M2M_ERR_INVALID_ARG;
             if (ret == M2M_SUCCESS)
             {
+
                 ret = winc_hif_send(M2M_REQ_GROUP_WIFI, M2M_WIFI_REQ_CONN | M2M_REQ_DATA_PKT,
                                 &strConnHdr, sizeof(tstrM2mWifiConnHdr),
                                 &strPsk, sizeof(tstrM2mWifiPsk), sizeof(tstrM2mWifiConnHdr));
+                
             }
         }
     }
@@ -939,7 +943,7 @@ int8_t m2m_wifi_connect_1x_tls(tenuCredStoreOption enuCredStoreOption, tstrNetwo
 #endif
 }
 
-int8_t m2m_wifi_connect(char *pcSsid, uint8_t u8SsidLen, uint8_t u8SecType, void *pvAuthInfo, uint16_t u16Ch)
+    int8_t m2m_wifi_connect(char *pcSsid, uint8_t u8SsidLen, uint8_t u8SecType, void *pvAuthInfo, uint16_t u16Ch)
 {
     return m2m_wifi_connect_sc(pcSsid, u8SsidLen, u8SecType, pvAuthInfo, u16Ch, 0);
 }
@@ -979,6 +983,7 @@ int8_t m2m_wifi_connect_sc(char *pcSsid, uint8_t u8SsidLen, uint8_t u8SecType, v
                 strAuthPsk.pu8Passphrase   = (uint8_t*)pvAuthInfo;
                 strAuthPsk.u8PassphraseLen = (uint8_t)len;
             }
+            debug_print("Here log!!!!=====>>>");
             s8Ret = m2m_wifi_connect_psk(enuCredStoreOption, &strNetworkId, &strAuthPsk);
         }
         break;

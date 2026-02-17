@@ -108,6 +108,9 @@
           <itemPath>mcc_generated_files/mqtt/mqtt_packetTransfer_interface.h</itemPath>
           <itemPath>mcc_generated_files/mqtt/mqtt_winc_adapter.h</itemPath>
         </logicalFolder>
+        <logicalFolder name="f1" displayName="wifi" projectFiles="true">
+          <itemPath>mcc_generated_files/wifi_manager.h</itemPath>
+        </logicalFolder>
         <logicalFolder name="winc" displayName="winc" projectFiles="true">
           <logicalFolder name="common" displayName="common" projectFiles="true">
             <itemPath>mcc_generated_files/winc/common/ecc_types.h</itemPath>
@@ -170,6 +173,7 @@
         <itemPath>mcc_generated_files/CryptoAuth_init.h</itemPath>
         <itemPath>mcc_generated_files/cryptoauthlib_config.h</itemPath>
         <itemPath>mcc_generated_files/logger.h</itemPath>
+        <itemPath>mcc_generated_files/sensors.h</itemPath>
       </logicalFolder>
       <logicalFolder name="f1" displayName="peripherals" projectFiles="true">
         <logicalFolder name="f4" displayName="scd40" projectFiles="true">
@@ -195,6 +199,7 @@
       <itemPath>../../../Source/include/FreeRTOS.h</itemPath>
       <itemPath>../FreeRTOSConfig.h</itemPath>
       <itemPath>../../Common/include/serial.h</itemPath>
+      <itemPath>../../../Source/include/timers.h</itemPath>
     </logicalFolder>
     <logicalFolder name="ExternalFiles"
                    displayName="Important Files"
@@ -233,6 +238,7 @@
         <itemPath>../../../Source/portable/MPLAB/PIC24_dsPIC/port.c</itemPath>
         <itemPath>../../../Source/portable/MPLAB/PIC24_dsPIC/portasm_PIC24.S</itemPath>
         <itemPath>../../../Source/tasks.c</itemPath>
+        <itemPath>../../../Source/timers.c</itemPath>
       </logicalFolder>
       <logicalFolder name="MCC Generated Files"
                      displayName="MCC Generated Files"
@@ -347,6 +353,9 @@
           <itemPath>mcc_generated_files/mqtt/mqtt_packetTransfer_interface.c</itemPath>
           <itemPath>mcc_generated_files/mqtt/mqtt_winc_adapter.c</itemPath>
         </logicalFolder>
+        <logicalFolder name="f1" displayName="wifi" projectFiles="true">
+          <itemPath>mcc_generated_files/wifi_manager.c</itemPath>
+        </logicalFolder>
         <logicalFolder name="winc" displayName="winc" projectFiles="true">
           <logicalFolder name="driver" displayName="driver" projectFiles="true">
             <itemPath>mcc_generated_files/winc/driver/winc_spi.c</itemPath>
@@ -391,6 +400,7 @@
         <itemPath>mcc_generated_files/time_service.c</itemPath>
         <itemPath>mcc_generated_files/CryptoAuth_init.c</itemPath>
         <itemPath>mcc_generated_files/logger.c</itemPath>
+        <itemPath>mcc_generated_files/sensors.c</itemPath>
       </logicalFolder>
       <logicalFolder name="f1" displayName="peripherals" projectFiles="true">
         <logicalFolder name="f4" displayName="scd40" projectFiles="true">
@@ -495,7 +505,7 @@
       </makeCustomizationType>
       <C30>
         <property key="cast-align" value="false"/>
-        <property key="code-model" value="default"/>
+        <property key="code-model" value="large-code"/>
         <property key="const-model" value="default"/>
         <property key="data-model" value="default"/>
         <property key="disable-instruction-scheduling" value="false"/>
@@ -794,6 +804,8 @@
         <property key="memories.programmemory" value="true"/>
         <property key="memories.programmemory.ranges" value="0-15eff"/>
         <property key="poweroptions.powerenable" value="false"/>
+        <property key="programmerToGoFilePath"
+                  value="/home/telea/Documents/SoteriaRTOS/SoteriaPIC/Soteria/PICIoT.X/debug/default/PICIoT_ptg"/>
         <property key="programoptions.eraseb4program" value="true"/>
         <property key="programoptions.preservedataflash" value="false"/>
         <property key="programoptions.preservedataflash.ranges"

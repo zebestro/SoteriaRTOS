@@ -28,6 +28,8 @@ SOFTWARE.
 #ifndef APPLICATION_MANAGER_H_
 #define APPLICATION_MANAGER_H_
 
+void vMainDataTask(void *pvParameters);
+void mainDataTask();
 void application_init(void);
 void application_post_provisioning(void);
 void runScheduler(void);

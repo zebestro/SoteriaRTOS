@@ -29,6 +29,11 @@
 #include <stdio.h>
 #include <stdint.h>
 #include <string.h>
+
+#include "FreeRTOS.h"
+#include "task.h"
+#include "timers.h"
+
 #include "cloud_interface.h"
 #include "../config/mqtt_config.h"
 #include "../config/cloud_config.h"
@@ -44,6 +49,10 @@
 #include "../winc/common/winc_defines.h"
 #include "../winc/m2m/m2m_ssl.h"
 #include "../config/cloud_config.h"
+
+
+extern TimerHandle_t mqttTimeoutTimer;
+extern TimerHandle_t cloudResetTimer;
 
 
 publishReceptionHandler_t imqtt_publishReceiveCallBackTable[NUM_TOPICS_SUBSCRIBE];
@@ -72,7 +81,7 @@ void NETWORK_wifiSslCallback(uint8_t u8MsgType, void *pvMsg)
             break;
     }
 }
-
+/*
 void CLOUD_init(timerStruct_t* appProtocolTimeoutTaskTimer, timerStruct_t* cloudResetTaskTimer) 
 {
     atcab_lock_data_zone();
@@ -83,6 +92,39 @@ void CLOUD_init(timerStruct_t* appProtocolTimeoutTaskTimer, timerStruct_t* cloud
     timeout_create(cloudResetTaskTimer, CLOUD_RESET_TIMEOUT);
     cloudStatus.cloudResetTimerFlag = true;
 }
+*/
+
+void CLOUD_init(void)
+{
+    atcab_lock_data_zone();
+    atcab_lock_config_zone();
+
+    cloudStatus.isResetting = true;
+
+    debug_printInfo("CLOUD: Cloud reset timer is set");
+
+    /* Stop MQTT timeout timer */
+    if (mqttTimeoutTimer != NULL)
+    {
+        xTimerStop(mqttTimeoutTimer, 0);
+    } else {
+        debug_printError("CLOUD: mqttTimeoutTimer == NULL");
+    }
+
+    /* Start cloud reset timer */
+    if (cloudResetTimer != NULL)
+    {
+        debug_printInfo("CLOUD: Let's run cloudResetTimer");
+        xTimerStop(cloudResetTimer, 0);
+        xTimerChangePeriod(cloudResetTimer, pdMS_TO_TICKS(CLOUD_RESET_TIMEOUT), 0);
+        xTimerStart(cloudResetTimer, 0);
+    } else {
+        debug_printError("CLOUD: cloudResetTimer == NULL");
+    }
+
+    cloudStatus.cloudResetTimerFlag = true;
+}
+
 
 int8_t CLOUD_connectSocket(uint32_t ipAddress)
 {
@@ -189,8 +231,8 @@ void CLOUD_disconnect(void)
     if (MQTT_GetConnectionState() == CONNECTED)
     {
         if (MQTT_Disconnect(MQTT_GetClientConnectionInfo()) == DISCONNECTED)
-		{
-			debug_print("MQTT: sendresult (%d)", MQTT_LastSentSize());
+        {
+            debug_print("MQTT: sendresult (%d)", MQTT_LastSentSize());
         }
     }
 }

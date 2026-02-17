@@ -3,6 +3,7 @@
 
 #include "FreeRTOS.h"
 #include "queue.h"
+#include "stdbool.h"
 
 #define LOGGER_QUEUE_LEN		12
 #define LOGGER_MESSAGE_SIZE  128
@@ -18,7 +19,7 @@ void dmaInit(void);
 void uartInit(void);
 void uart_startTransfer(uint8_t *memory, uint16_t size);
 void __attribute__((interrupt,no_auto_psv)) _DMA0Interrupt(void);
-void logger_print(char * msg);
+void logger_printf(const char *format, ...);
 void vLoggerTask(void *pvParameters);
 QueueHandle_t xStartLoggerTask( void );
     

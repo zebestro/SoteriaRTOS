@@ -102,7 +102,7 @@ void MQTT_CLIENT_publish(uint8_t* refToPublishTopic, uint8_t *data, uint16_t len
     
     if(MQTT_CreatePublishPacket(&cloudPublishPacket) != true)
     {
-		debug_printError("MQTT: Connection lost PUBLISH failed");
+        debug_printError("MQTT: Connection lost PUBLISH failed");
     }
 }
 
@@ -148,7 +148,7 @@ void MQTT_CLIENT_connect(void)
 	cloudConnectPacket.connectVariableHeader.connectFlagsByte.All = 0x02;
 	cloudConnectPacket.connectVariableHeader.keepAliveTimer = 10;
 	cloudConnectPacket.clientID = (uint8_t*)cid;
-    // Set the subscription callback handler here
-    MQTT_SetPublishReceptionCallback(manageSubscriptionMessage);
+        // Set the subscription callback handler here
+        MQTT_SetPublishReceptionCallback(manageSubscriptionMessage);
 	MQTT_CreateConnectPacket(&cloudConnectPacket);
 }

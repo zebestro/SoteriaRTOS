@@ -67,6 +67,10 @@
 #include "task.h"
 #include "queue.h"
 #include "croutine.h"
+#include "system.h"
+#include "debug_print.h"
+
+#include "sensors.h"
 
 //#pragma config FWDTEN = OFF
 
@@ -127,41 +131,65 @@ static QueueHandle_t xLCDQueue;
 
 /*-----------------------------------------------------------*/
 
-/*
- * Create the demo tasks then start the scheduler.
- */
-int main( void ) {
-	/* Configure any hardware required for this demo. */
-	//prvSetupHardware();
-        application_init();
 
-	/* Create the standard demo tasks. */
+int main( void ) {
+	//prvSetupHardware();
+        SYSTEM_Initialize();
+        //application_init();
+
 	//vStartBlockingQueueTasks( mainBLOCK_Q_PRIORITY );	
 	//vStartIntegerMathTasks( tskIDLE_PRIORITY );
 	//vStartFlashCoRoutines( mainNUM_FLASH_COROUTINES );
 	//vAltStartComTestTasks( mainCOM_TEST_PRIORITY, mainCOM_TEST_BAUD_RATE, mainCOM_TEST_LED );
 	//vCreateBlockTimeTasks();
 
-	/* Create the test tasks defined within this file. */
 	//xTaskCreate( vCheckTask, "Check", mainCHECK_TAKS_STACK_SIZE, NULL, 1, NULL );
     	//xTaskCreate( vCheTask, "Che", mainCHECK_TAKS_STACK_SIZE, NULL, 2, NULL );
+        
         xStartLoggerTask();
+        //SENSOR_DATA_init();
+        
+        //application_init();
 
-	/* Start the task that will control the LCD.  This returns the handle
-	to the queue used to write text out to the task. */
 	//xLCDQueue = xStartLCDTask();
 
-	/* Start the high frequency interrupt test. */
 	//vSetupTimerTest( mainTEST_INTERRUPT_FREQUENCY );
 
-	/* Finally start the scheduler. */
 	vTaskStartScheduler();
 
-	/* Will only reach here if there is insufficient heap available to start
-	the scheduler. */
 	return 0;
 }
-/*-----------------------------------------------------------*/
+
+
+
+
+
+
+
+/*
+#include "mcc_generated_files/application_manager.h"
+
+
+
+
+int main(void)
+{
+	application_init();
+
+	while (1)
+	{ 
+		runScheduler();  
+	}
+   
+	return 0;
+}
+
+*/
+
+
+
+
+
 
 static void prvSetupHardware( void )
 {
@@ -179,14 +207,7 @@ void vApplicationIdleHook( void )
 
 void vApplicationStackOverflowHook( TaskHandle_t pxTask, char *pcTaskName )
 {
-	( void ) pcTaskName;
-	( void ) pxTask;
-
-	/* Run time stack overflow checking is performed if
-	configCHECK_FOR_STACK_OVERFLOW is defined to 1 or 2.  This hook
-	function is called if a stack overflow is detected. */
-	taskDISABLE_INTERRUPTS();
-	for( ;; );
+    while(1);
 }
 
 

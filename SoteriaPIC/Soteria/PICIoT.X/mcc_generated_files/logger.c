@@ -5,17 +5,32 @@
 #include <stdarg.h>
 #include <stdio.h>
 #include <string.h>
+#include "sensors.h"
 #include "FreeRTOS.h"
 #include "logger.h"
 #include "task.h"
+#include "semphr.h"
+#include "debug_print.h"
+
+
+static StaticTask_t xSomeTaskTCB;
+static StackType_t xSomeTaskStack[512];
+
+static StaticTask_t xLoggerTaskTCB;
+static StackType_t xLoggerTaskStack[256];
+
+static StaticTask_t xSGPTaskTCB;
+static StackType_t xSGPTaskStack[SGP_TASK_STACK_SIZE];
 
 
 static uint8_t buffer[LOGGER_MESSAGE_SIZE];
 static volatile bool dmaBusy = false;
 static uint8_t ucQueueStorage[LOGGER_QUEUE_LEN * sizeof(xLoggerMessage)];
 static StaticQueue_t xQueueBuffer;
+static StaticSemaphore_t xLoggerMutexBuffer;
 
 QueueHandle_t xLoggerQueue;
+SemaphoreHandle_t xLoggerMutex;
 
 static StaticTask_t xIdleTaskTCB;
 static StackType_t uxIdleTaskStack[configMINIMAL_STACK_SIZE];
@@ -33,18 +48,24 @@ void vApplicationGetIdleTaskMemory( StaticTask_t **ppxIdleTaskTCBBuffer,
 
 void vSomeTask(void *pvParameters);
 
+#include "application_manager.h"
 
 QueueHandle_t xStartLoggerTask( void )
 {
 	/* Create the queue used by the Logger task */
         //xLoggerQueue = xQueueCreate( LOGGER_QUEUE_LEN, sizeof(xLoggerMessage) );
         xLoggerQueue = xQueueCreateStatic( LOGGER_QUEUE_LEN, sizeof(xLoggerMessage), ucQueueStorage, &xQueueBuffer);
+        xLoggerMutex = xSemaphoreCreateMutexStatic(&xLoggerMutexBuffer);
+        configASSERT(xLoggerMutex != NULL);
+
         dmaInit();
-        uartInit();
-        xTaskCreate(vSomeTask, "Task", LOGGER_TASK_STACK_SIZE, NULL, tskIDLE_PRIORITY + 2, NULL );
-       
-	xTaskCreate(vLoggerTask, "Log", LOGGER_TASK_STACK_SIZE, NULL, tskIDLE_PRIORITY + 1, NULL);
-	return xLoggerQueue;
+        uartInit();     
+        
+        xTaskCreateStatic(vSomeTask, "Task", 512, NULL, tskIDLE_PRIORITY + 1, xSomeTaskStack, &xSomeTaskTCB);
+        //SENSOR_DATA_init();
+        //xTaskCreateStatic(vSGPTask, "SGP", 512, NULL, tskIDLE_PRIORITY + 1, xSGPTaskStack, &xSGPTaskTCB);
+        xTaskCreateStatic(vLoggerTask, "Log", 256, NULL, tskIDLE_PRIORITY + 1, xLoggerTaskStack, &xLoggerTaskTCB);
+        return xLoggerQueue;
 }
 
 
@@ -120,7 +141,7 @@ void logger_printf(const char *format, ...)
 
     int len = vsnprintf(
         (char *)logMsg.pcMessage,
-        LOGGER_MESSAGE_SIZE - 2,   // ????????? ????? ??? \r\n
+        LOGGER_MESSAGE_SIZE - 2,
         format,
         args
     );
@@ -135,10 +156,13 @@ void logger_printf(const char *format, ...)
 
     logMsg.pcMessage[len++] = '\r';
     logMsg.pcMessage[len++] = '\n';
-
     logMsg.size = len;
 
-    xQueueSend(xLoggerQueue, &logMsg, 0);
+    if (xSemaphoreTake(xLoggerMutex, portMAX_DELAY) == pdTRUE)
+    {
+        xQueueSend(xLoggerQueue, &logMsg, 0);
+        xSemaphoreGive(xLoggerMutex);
+    }
 }
 
 
@@ -204,7 +228,7 @@ void vSomeTask(void *pvParameters)
             logger_printf("SGP40 VOC raw: %d", sraw_voc);
         }
 
-        vTaskDelay(pdMS_TO_TICKS(1000)); // ????????? ?????? ???????
+        vTaskDelay(pdMS_TO_TICKS(1000));
     }
 }
 */
@@ -290,7 +314,7 @@ void vSomeTask(void *pvParameters)
 */
 
 
-
+/*
 #include "scd4x_i2c.h"
 #include "logger.h"
 
@@ -321,16 +345,6 @@ void vSomeTask(void *pvParameters)
     } else {
         logger_printf("(Performed): scd4x_stop_periodic_measurement() =====> (OK)");
         logger_printf("[INIT] Serial: %04X %04X %04X", serial[0], serial[1], serial[2]);
-    }
-
-    
-    
-    
-    ret = scd4x_stop_periodic_measurement();
-    if(ret) {
-        logger_printf("scd4x_stop_periodic_measurement(): error, return code: (%d)", ret);
-    } else {
-        logger_printf("(Performed): scd4x_stop_periodic_measurement() =====> (OK)");
     }
     
     
@@ -418,6 +432,23 @@ void vSomeTask(void *pvParameters)
         }
 
         vTaskDelay(pdMS_TO_TICKS(200));
+    }
+}
+*/
+
+//bool initialized = false;
+
+void vSomeTask(void *pvParameters)
+{
+    application_init();
+    
+    debug_print("vSomeTask Started!");
+
+    while(1)
+    {
+        
+        mainDataTask();
+        vTaskDelay(pdMS_TO_TICKS(1000));
     }
 }
 

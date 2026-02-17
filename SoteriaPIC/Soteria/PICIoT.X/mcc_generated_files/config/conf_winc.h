@@ -70,7 +70,8 @@
 // <s> SSID
 // <i> Target WLAN SSID
 // <id> main_wlan_ssid
-#define CFG_MAIN_WLAN_SSID "MCHP.IOT"
+//#define CFG_MAIN_WLAN_SSID "MCHP.IOT"
+#define CFG_MAIN_WLAN_SSID "andrew"
 
 // <y> Authentication
 // <i> Target WLAN Authentication
@@ -85,7 +86,7 @@
 // <s> Password
 // <i> Target WLAN password
 // <id> main_wlan_psk
-#define CFG_MAIN_WLAN_PSK "microchip"
+#define CFG_MAIN_WLAN_PSK "1234543219"
 
 // </h>
 

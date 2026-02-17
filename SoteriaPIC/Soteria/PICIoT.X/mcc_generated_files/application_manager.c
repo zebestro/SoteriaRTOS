@@ -46,14 +46,22 @@ SOFTWARE.
 #include "led.h"
 #include "debug_print.h"
 #include "time_service.h"
+#include "FreeRTOS.h"
+#include "task.h"
+#include "logger.h"
 #if CFG_ENABLE_CLI
 #include "cli/cli.h"
+#include "winc/m2m/m2m_types.h"
+#include "../winc/m2m/m2m_wifi.h"
 #endif
 
 
+//static StaticTask_t xMainTaskTCB;
+//static StackType_t xMainTaskStack[512];
+
 #define MAIN_DATATASK_INTERVAL 100L
 // The debounce time is currently close to 2 Seconds.
-#define SW_DEBOUNCE_INTERVAL   1460000L
+#define SW_DEBOUNCE_INTERVAL   1460000L * 2
 #define SW0_TOGGLE_STATE	   SW0_GetValue()
 #define SW1_TOGGLE_STATE	   SW1_GetValue()
 #define TOGGLE_ON  1
@@ -69,8 +77,8 @@ char mqttSubscribeTopic[SUBSCRIBE_TOPIC_SIZE];
 ATCA_STATUS retValCryptoClientSerialNumber;
 static uint8_t holdCount = 0;
 
-uint32_t MAIN_dataTask(void *payload);
-timerStruct_t MAIN_dataTasksTimer = {MAIN_dataTask};
+//uint32_t MAIN_dataTask(void *payload);
+//timerStruct_t MAIN_dataTasksTimer = {MAIN_dataTask};
 
 static void  wifiConnectionStateChanged(uint8_t status);
 static void sendToCloud(void);
@@ -102,7 +110,7 @@ static void sendToCloud(void)
     {
         rawTemperature = SENSORS_getTempValue();
         light = SENSORS_getLightValue();
-        len = sprintf(json,"{\"Light\":%d,\"Temp\":%d.%02d}", light,rawTemperature/100,abs(rawTemperature)%100);
+        len = sprintf(json,"{\"Light\":%d,\"Temp\":%d.%02d,\"Hum\":%d}", light,rawTemperature/100,abs(rawTemperature)%100, 20);
     }
     if (len >0) 
     {
@@ -152,6 +160,14 @@ static void receivedFromCloud(uint8_t *topic, uint8_t *payload)
     updateDeviceShadow();
 }
 
+
+
+
+
+
+
+
+
 void application_init(void)
 {
 	uint8_t mode = WIFI_DEFAULT;
@@ -160,29 +176,35 @@ void application_init(void)
 	uint32_t i = 0;
 
     // Initialization of modules before interrupts are enabled
-    SYSTEM_Initialize();
-/*
+    // SYSTEM_Initialize();
+    
     // Blocking debounce
-    timeout_flushAll();
+    
+    //timeout_flushAll();
     for(i = 0; i < SW_DEBOUNCE_INTERVAL; i++)
     {
         sw0CurrentVal += SW0_TOGGLE_STATE;
         sw1CurrentVal += SW1_TOGGLE_STATE;
     }
+     
 
     LED_test();
 #if CFG_ENABLE_CLI     
-    CLI_init();
-    CLI_setdeviceId(attDeviceID);
+    //CLI_init();
+    //CLI_setdeviceId(attDeviceID);
 #endif   
     debug_init(attDeviceID);   
+    debug_setSeverity(SEVERITY_DEBUG);
     
     // Initialization of modules where the init needs interrupts to be enabled
     if(!CryptoAuth_Initialize())
     {
         debug_printError("APP: CryptoAuthInit failed");
         shared_networking_params.haveError = 1;
+    } else {
+        debug_printGOOD("APP: CryptoAuthInit initialized");
     }
+    
     // Get serial number from the ECC608 chip 
     retValCryptoClientSerialNumber = CRYPTO_CLIENT_printSerialNumber(attDeviceID);
     if( retValCryptoClientSerialNumber != ATCA_SUCCESS )
@@ -198,11 +220,13 @@ void application_init(void)
             default:
                 debug_printError("APP: DeviceID generation failed");
                 break;
-        }
-        
+        } 
+    } else {
+        debug_printGOOD("APP: DeviceID generated ---> OK");
     }
+    
 #if CFG_ENABLE_CLI   
-    CLI_setdeviceId(attDeviceID);
+    //CLI_setdeviceId(attDeviceID);
 #endif   
     debug_setPrefix(attDeviceID);     
 #if USE_CUSTOM_ENDPOINT_URL
@@ -211,84 +235,59 @@ void application_init(void)
     loadDefaultAWSEndpoint();
 #endif  
     wifi_readThingNameFromWinc();
-    timeout_create(&initDeviceShadowTimer, DEVICE_SHADOW_INIT_INTERVAL );    
-    if(sw0CurrentVal < (SW_DEBOUNCE_INTERVAL/2))
-    {
-        if(sw1CurrentVal < (SW_DEBOUNCE_INTERVAL/2))
-        {    
-            // Default Credentials + Connect to AP
-            strcpy(ssid, CFG_MAIN_WLAN_SSID);
-            strcpy(pass, CFG_MAIN_WLAN_PSK);
-            sprintf((char*)authType, "%d", CFG_MAIN_WLAN_AUTH);
-            
-            ledParameterBlue.onTime = LED_BLINK;
-            ledParameterBlue.offTime = LED_BLINK;
-            LED_control(&ledParameterBlue);
-            ledParameterGreen.onTime = LED_BLINK;
-            ledParameterGreen.offTime = LED_BLINK;
-            LED_control(&ledParameterGreen);
-            ledParameterYellow.onTime = SOLID_OFF;
-            ledParameterYellow.offTime = SOLID_ON;
-            LED_control(&ledParameterYellow);
-            ledParameterRed.onTime = SOLID_OFF;
-            ledParameterRed.offTime = SOLID_ON;
-            LED_control(&ledParameterRed);
-            shared_networking_params.amConnectingAP = 1;
-            shared_networking_params.amSoftAP = 0;
-            shared_networking_params.amDefaultCred = 1;
-        }
-        else
-        {    
-            // Host as SOFT AP
-            ledParameterBlue.onTime = LED_BLIP;
-            ledParameterBlue.offTime = LED_BLIP;
-            LED_control(&ledParameterBlue);
-            ledParameterGreen.onTime = SOLID_OFF;
-            ledParameterGreen.offTime = SOLID_ON;
-            LED_control(&ledParameterGreen);
-            ledParameterYellow.onTime = SOLID_OFF;
-            ledParameterYellow.offTime = SOLID_ON;
-            LED_control(&ledParameterYellow);
-            ledParameterRed.onTime = SOLID_OFF;
-            ledParameterRed.offTime = SOLID_ON;
-            LED_control(&ledParameterRed);
-            mode = WIFI_SOFT_AP;
-            shared_networking_params.amConnectingAP = 0;
-            shared_networking_params.amSoftAP = 1;
-            shared_networking_params.amDefaultCred = 0;
-        }
-    }
-    else
-    {    
-        // Connect to AP
-         ledParameterBlue.onTime = LED_BLINK;
-        ledParameterBlue.offTime = LED_BLINK;
-        LED_control(&ledParameterBlue);
-        ledParameterGreen.onTime = SOLID_OFF;
-        ledParameterGreen.offTime = SOLID_ON;
-        LED_control(&ledParameterGreen);
-        ledParameterYellow.onTime = SOLID_OFF;
-        ledParameterYellow.offTime = SOLID_ON;
-        LED_control(&ledParameterYellow);
-        ledParameterRed.onTime = SOLID_OFF;
-        ledParameterRed.offTime = SOLID_ON;
-        LED_control(&ledParameterRed);
-        shared_networking_params.amConnectingAP = 1;
-        shared_networking_params.amSoftAP = 0;
-        shared_networking_params.amDefaultCred = 0;
-    }
+
     wifi_init(wifiConnectionStateChanged, mode);
     
     if (mode == WIFI_DEFAULT) 
     {
         CLOUD_setupTask(attDeviceID);
-        timeout_create(&MAIN_dataTasksTimer, MAIN_DATATASK_INTERVAL);
+        //xTaskCreate(vMainDataTask, "App", 256, NULL, tskIDLE_PRIORITY + 2, NULL);
+        
+        //timeout_create(&MAIN_dataTasksTimer, MAIN_DATATASK_INTERVAL);
+        //xTaskCreate(vMainDataTask, "App", 256, NULL, tskIDLE_PRIORITY + 2, NULL);
+        //xTaskCreateStatic(vMainDataTask, "Main", 512, NULL, tskIDLE_PRIORITY + 2, xMainTaskStack, &xMainTaskTCB);
+        
+        
+        //vTaskDelay(pdMS_TO_TICKS(5000));
+        //if(1){
+        
+        /*
+        if(wifi_connectToAp(DEFAULT_CREDENTIALS)) {
+            debug_print("<<<====== LOG");
+            debug_print("<<<====== LOG");
+            debug_print("<<<====== LOG");
+            debug_print("<<<====== LOG");
+            debug_print("<<<====== LOG");
+        }
+        */
+        
+        //m2m_wifi_request_scan(M2M_WIFI_CH_ALL);
+        debug_print("Inside this...");
     }
     
-    LED_test();
-    subscribeToCloud();
- */
+    //subscribeToCloud();
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 static void subscribeToCloud(void)
 {
@@ -371,8 +370,10 @@ void runScheduler(void)
 }
 
 // This gets called by the scheduler approximately every 100ms
+/*
 uint32_t MAIN_dataTask(void *payload)
 {
+    debug_print("LOG");
     static uint32_t previousTransmissionTime = 0;
     
     // Get the current time. This uses the C standard library time functions
@@ -444,11 +445,163 @@ uint32_t MAIN_dataTask(void *payload)
     // makes the timer run another time, returning 0 will make it stop
     return MAIN_DATATASK_INTERVAL; 
 }
+*/
+
+/*
+void vMainDataTask(void *pvParameters)
+{
+    (void)pvParameters;
+    //TickType_t lastWakeTime = xTaskGetTickCount();
+    //static uint32_t previousTransmissionTime = 0;
+    
+    debug_printInfo("MAIN task started!");
+    
+    for (;;)
+    {
+        debug_printInfo("MAIN task LOG!");
+        uint32_t timeNow = TIME_getCurrent();
+
+        if (CLOUD_checkIsConnected())
+        {
+            sendToCloud();
+            debug_print("Data sent to cloud");
+        }
+        else
+        {
+            ledParameterYellow.onTime = SOLID_OFF;
+            ledParameterYellow.offTime = SOLID_ON;
+            LED_control(&ledParameterYellow);
+            debug_print("Cloud is not connected...");
+        }
+
+        if (!shared_networking_params.amConnectingAP)
+        {
+            if (shared_networking_params.haveAPConnection)
+            {
+                ledParameterBlue.onTime = SOLID_ON;
+                ledParameterBlue.offTime = SOLID_OFF;
+                LED_control(&ledParameterBlue);
+            }
+
+            if (!shared_networking_params.amConnectingSocket)
+            {
+                if (CLOUD_checkIsConnected())
+                {
+                    ledParameterGreen.onTime = SOLID_ON;
+                    ledParameterGreen.offTime = SOLID_OFF;
+                    LED_control(&ledParameterGreen);
+                } else {
+                    if (shared_networking_params.haveDataConnection == 1)
+                    {
+                        ledParameterGreen.onTime = LED_BLINK;
+                        ledParameterGreen.offTime = LED_BLINK;
+                        LED_control(&ledParameterGreen);
+                    }
+                    
+                    debug_print("Cloud is not connected(2)...");
+                }
+            } else {
+                debug_print("Socket is not connected to the cloud...");
+            }
+        } else {
+            debug_print("There is no AP connection...");
+        }
+
+        if (shared_networking_params.haveError)
+        {
+            ledParameterRed.onTime = SOLID_ON;
+            ledParameterRed.offTime = SOLID_OFF;
+            LED_control(&ledParameterRed);
+        }
+        else
+        {
+            ledParameterRed.onTime = SOLID_OFF;
+            ledParameterRed.offTime = SOLID_ON;
+            LED_control(&ledParameterRed);
+        }
+        
+        debug_printInfo("MAIN task LOG!");
+
+        vTaskDelay(pdMS_TO_TICKS(1000));
+    }
+}
+*/
+
+
+
+void mainDataTask()
+{
+    debug_printInfo("MAIN Step LOG!");
+    uint32_t timeNow = TIME_getCurrent();
+
+    if (CLOUD_checkIsConnected())
+    {
+        sendToCloud();
+        debug_print("Data sent to cloud");
+    }
+    else
+    {
+        ledParameterYellow.onTime = SOLID_OFF;
+        ledParameterYellow.offTime = SOLID_ON;
+        LED_control(&ledParameterYellow);
+        debug_print("Cloud is not connected...");
+    }
+
+    if (!shared_networking_params.amConnectingAP)
+    {
+        if (shared_networking_params.haveAPConnection)
+        {
+            ledParameterBlue.onTime = SOLID_ON;
+            ledParameterBlue.offTime = SOLID_OFF;
+            LED_control(&ledParameterBlue);
+        }
+
+        if (!shared_networking_params.amConnectingSocket)
+        {
+            if (CLOUD_checkIsConnected())
+            {
+                ledParameterGreen.onTime = SOLID_ON;
+                ledParameterGreen.offTime = SOLID_OFF;
+                LED_control(&ledParameterGreen);
+            } else {
+                if (shared_networking_params.haveDataConnection == 1)
+                {
+                    ledParameterGreen.onTime = LED_BLINK;
+                    ledParameterGreen.offTime = LED_BLINK;
+                    LED_control(&ledParameterGreen);
+                }
+
+                debug_print("Cloud is not connected(2)...");
+            }
+        } else {
+            debug_print("Socket is not connected to the cloud...");
+        }
+    } else {
+        debug_print("There is no AP connection...");
+    }
+
+    if (shared_networking_params.haveError)
+    {
+        ledParameterRed.onTime = SOLID_ON;
+        ledParameterRed.offTime = SOLID_OFF;
+        LED_control(&ledParameterRed);
+    }
+    else
+    {
+        ledParameterRed.onTime = SOLID_OFF;
+        ledParameterRed.offTime = SOLID_ON;
+        LED_control(&ledParameterRed);
+    }
+}
+
+
+
+
 
 void application_post_provisioning(void)
 {
     CLOUD_setupTask(attDeviceID);
-    timeout_create(&MAIN_dataTasksTimer, MAIN_DATATASK_INTERVAL);
+    //timeout_create(&MAIN_dataTasksTimer, MAIN_DATATASK_INTERVAL);
 }
 
 // React to the WIFI state change here. Status of 1 means connected, Status of 0 means disconnected

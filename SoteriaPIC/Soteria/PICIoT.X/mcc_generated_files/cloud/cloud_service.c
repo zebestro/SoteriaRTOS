@@ -41,15 +41,41 @@
 #include "../led.h"
 #include "../time_service.h"
 #include "cloud_interface.h"
+
+#include "FreeRTOS.h"
+#include "task.h"
+#include "timers.h"
   
 
 // Scheduler Callback functions
-uint32_t cloudTask(void *param);
+//uint32_t cloudTask(void *param);
 uint32_t mqttTimeoutTask(void *payload);
 uint32_t cloudResetTask(void *payload);
+void vCloudTask(void *pvParameters);
+
+/* ??????????? ?????? ??? ???????? */
+static StaticTimer_t xMqttTimeoutTimerBuffer;
+TimerHandle_t mqttTimeoutTimer;
+
+static StaticTimer_t xCloudResetTimerBuffer;
+TimerHandle_t cloudResetTimer;
+
+static StaticTask_t xTimerTaskTCBBuffer;
+static StackType_t  xTimerTaskStack[configTIMER_TASK_STACK_DEPTH];
+
+void vApplicationGetTimerTaskMemory( StaticTask_t **ppxTimerTaskTCBBuffer,
+                                     StackType_t **ppxTimerTaskStackBuffer,
+                                     uint32_t *pulTimerTaskStackSize )
+{
+    *ppxTimerTaskTCBBuffer = &xTimerTaskTCBBuffer;
+    *ppxTimerTaskStackBuffer = xTimerTaskStack;
+    *pulTimerTaskStackSize = configTIMER_TASK_STACK_DEPTH;
+}
+
 
 static void dnsHandler(uint8_t * domainName, uint32_t serverIP);
 static uint8_t reInit(void);
+static uint8_t pseudo_reInit(void);
 static int32_t getMQTT_ConnectionAge(void);
 static void CLOUD_handleReceptionDebugMessage(void);
 static void CLOUD_handleTransmitDebugMessage(void);
@@ -65,10 +91,13 @@ static void handleSocketState(socketState_t socketState, int32_t thisAge);
 #define CLOUD_MQTT_TIMEOUT_COUNT	      10000L   // 10 seconds max allowed to establish a connection
 #define MQTT_CONN_AGE_TIMEOUT          3600L      // 3600 seconds = 60minutes
 
+static StaticTask_t xCloudTaskTCB;
+static StackType_t xCloudTaskStack[512];
+
 // Create the timers for scheduler_timeout which runs these tasks
-timerStruct_t cloudTaskTimer            = {cloudTask};
-timerStruct_t mqttTimeoutTaskTimer       = {mqttTimeoutTask};
-timerStruct_t cloudResetTaskTimer       = {cloudResetTask};
+//timerStruct_t cloudTaskTimer            = {cloudTask};
+//timerStruct_t mqttTimeoutTaskTimer       = {mqttTimeoutTask};
+//timerStruct_t cloudResetTaskTimer       = {cloudResetTask};
 
 uint32_t mqttBrokerIP;
 shared_networking_params_t shared_networking_params;
@@ -78,14 +107,48 @@ packetReceptionHandler_t cloud_packetReceiveCallBackTable[CLOUD_PACKET_RECV_TABL
 cloudContext_t cloudContext = 
 {
     CLOUD_init,
-    CLOUD_connectSocket, 
-    CLOUD_connectAppProtocol, 
+    CLOUD_connectSocket,
+    CLOUD_connectAppProtocol,
     CLOUD_subscribe,
-    CLOUD_publish, 
-    CLOUD_disconnect, 
-    CLOUD_isConnected, 
+    CLOUD_publish,
+    CLOUD_disconnect,
+    CLOUD_isConnected,
     CLOUD_isDisconnected
 };
+
+
+
+static void vMqttTimeoutCb(TimerHandle_t xTimer)
+{
+    (void)xTimer;
+    mqttTimeoutTask(NULL);
+}
+
+static void vCloudResetCb(TimerHandle_t xTimer)
+{
+    (void)xTimer;
+    cloudResetTask(NULL);
+}
+
+void CLOUD_createTimers(void)
+{
+    mqttTimeoutTimer = xTimerCreateStatic("MQTT_TO",
+            pdMS_TO_TICKS(CLOUD_MQTT_TIMEOUT_COUNT),
+            pdFALSE,
+            NULL,
+            vMqttTimeoutCb,
+            &xMqttTimeoutTimerBuffer
+    );
+
+    cloudResetTimer = xTimerCreateStatic(
+        "CLD_RST",
+        pdMS_TO_TICKS(CLOUD_RESET_TIMEOUT),
+        pdFALSE,
+        NULL,
+        vCloudResetCb,
+        &xCloudResetTimerBuffer
+    );
+}
 
 
 void CLOUD_reset(void)
@@ -97,7 +160,12 @@ void CLOUD_reset(void)
 void CLOUD_setupTask(char* attDeviceID)
 {     
     // Create timers for the application scheduler
-    timeout_create(&cloudTaskTimer, 500);
+    //timeout_create(&cloudTaskTimer, 500);
+    CLOUD_createTimers();
+    xTaskCreateStatic(vCloudTask, "CLD", 512, NULL, tskIDLE_PRIORITY + 2, xCloudTaskStack, &xCloudTaskTCB);
+    //mqttTimeoutTimer = xTimerCreate("MQTT_TO", pdMS_TO_TICKS(CLOUD_MQTT_TIMEOUT_COUNT), pdFALSE, NULL, vMqttTimeoutCb);
+    //cloudResetTimer = xTimerCreate( "CLD_RST", pdMS_TO_TICKS(CLOUD_MQTT_TIMEOUT_COUNT), pdFALSE, NULL, vCloudResetCb);
+    //CLOUD_createTimers();
 }
 
 void CLOUD_registerSubscription(uint8_t *topic, imqttHandlePublishDataFuncPtr subscriptionCallback)
@@ -135,7 +203,7 @@ uint32_t mqttTimeoutTask(void *payload)
 
 uint32_t cloudResetTask(void *payload) 
 {
-	debug_printError("CLOUD: Reset task");
+	debug_printInfo("CLOUD: Reset task");
     if(reInit())
     {
         cloudStatus.cloudInitialized = true;
@@ -147,33 +215,54 @@ uint32_t cloudResetTask(void *payload)
     return 0;
 }
 
-uint32_t cloudTask(void *param)
+
+void vCloudTask(void *pvParameters)
 {
-	if ((cloudStatus.cloudInitialized == false) && (cloudStatus.isResetting == false))
-	{
-        cloudContext.cloudInit(&mqttTimeoutTaskTimer, &cloudResetTaskTimer);     
-	} 
-    else if ((cloudStatus.waitingForMQTT == false)
-            && (!cloudContext.cloudIsConnected())
-            && (cloudStatus.cloudResetTimerFlag == false))
-    {
-        startMqttConnectionTimeout();
-    }
+    (void) pvParameters;
     
-    if(hasLostWifi()) {
-        setMqttStateToDisconnected();
-    }
-    else
+    debug_printInfo("CLOUD task started!");
+
+    for(;;)
     {
-        handleSocketConnection();
+        debug_printInfo("CLOUD task LOG!");
+        if ((cloudStatus.cloudInitialized == false) && (cloudStatus.isResetting == false))
+        {
+            //cloudContext.cloudInit(&mqttTimeoutTaskTimer, &cloudResetTaskTimer);     
+            cloudContext.cloudInit();
+            debug_printInfo("CLOUD will be initialized <<<=== LOG!");
+        } 
+        else if ((cloudStatus.waitingForMQTT == false)
+                 && (!cloudContext.cloudIsConnected())
+                 && (cloudStatus.cloudResetTimerFlag == false))
+        {
+            startMqttConnectionTimeout();
+        }
+
+        if(hasLostWifi()) 
+        {
+            setMqttStateToDisconnected();
+            debug_printError("Wifi connection lost...");
+        }
+        else
+        {
+            handleSocketConnection();
+            debug_printInfo("CLOUD: Handling socket connection");
+        }
+
+        vTaskDelay(pdMS_TO_TICKS(1000));
     }
-	return CLOUD_TASK_INTERVAL;
 }
+
 
 static void startMqttConnectionTimeout() 
 {
     debug_printError("MQTT: MQTT reset timer is created");
-    timeout_create(&mqttTimeoutTaskTimer, CLOUD_MQTT_TIMEOUT_COUNT);
+    //timeout_create(&mqttTimeoutTaskTimer, CLOUD_MQTT_TIMEOUT_COUNT);
+    
+    xTimerStop(mqttTimeoutTimer, 0);
+    xTimerChangePeriod(mqttTimeoutTimer, pdMS_TO_TICKS(CLOUD_MQTT_TIMEOUT_COUNT), 0);
+    xTimerStart(mqttTimeoutTimer, 0);
+
     shared_networking_params.haveDataConnection = 0;
     cloudStatus.waitingForMQTT = true;
 }
@@ -287,8 +376,10 @@ static void handleSocketState(socketState_t socketState, int32_t thisAge)
                 {
                     shared_networking_params.amConnectingSocket = 0;
                     shared_networking_params.haveError = 0;         
-                    timeout_delete(&mqttTimeoutTaskTimer);
-                    timeout_delete(&cloudResetTaskTimer);
+                    //timeout_delete(&mqttTimeoutTaskTimer);
+                    //timeout_delete(&cloudResetTaskTimer);
+                    xTimerStop(mqttTimeoutTimer, 0);
+                    xTimerStop(cloudResetTimer, 0);
                     cloudStatus.isResetting = false;
 
                     cloudStatus.waitingForMQTT = false;      
@@ -423,9 +514,71 @@ static uint8_t reInit(void)
         return false;
     }
 	
-    timeout_delete(&cloudResetTaskTimer);
+    //timeout_delete(&cloudResetTaskTimer);
+    xTimerStop(cloudResetTimer, 0);
+    
     debug_printInfo("CLOUD: Cloud reset timer is deleted");
-    timeout_create(&mqttTimeoutTaskTimer, CLOUD_MQTT_TIMEOUT_COUNT);
+    
+    //timeout_create(&mqttTimeoutTaskTimer, CLOUD_MQTT_TIMEOUT_COUNT);
+    xTimerStop(mqttTimeoutTimer, 0);
+    xTimerChangePeriod(mqttTimeoutTimer, pdMS_TO_TICKS(CLOUD_MQTT_TIMEOUT_COUNT), 0);
+    xTimerStart(mqttTimeoutTimer, 0);
+    cloudStatus.cloudResetTimerFlag = false;
+    cloudStatus.waitingForMQTT = true;		
+    
+    return true;
+}
+
+static uint8_t pseudo_reInit(void)
+{
+    debug_printInfo("CLOUD: reinit");
+    
+    mqttBrokerIP = 0;
+    shared_networking_params.haveAPConnection = 0;
+    shared_networking_params.amConnectingAP = 1;
+    cloudStatus.waitingForMQTT = false;
+    cloudStatus.isResetting = false;
+    uint8_t wifi_creds;
+    
+    //Re-init the WiFi
+    wifi_reinit();
+    
+    registerSocketCallback(BSD_SocketHandler, dnsHandler);
+    
+    MQTT_ClientInitialise();
+    memset(&cloud_packetReceiveCallBackTable, 0, sizeof(cloud_packetReceiveCallBackTable));
+    BSD_SetRecvHandlerTable(cloud_packetReceiveCallBackTable);
+    
+    cloud_packetReceiveCallBackTable[0].socket = MQTT_GetClientConnectionInfo()->tcpClientSocket;
+    cloud_packetReceiveCallBackTable[0].recvCallBack = MQTT_CLIENT_receive;
+    
+    //When the input comes through cli/.cfg
+    if((strcmp(ssid,"") != 0) &&  (strcmp(authType,"") != 0))
+    {
+        wifi_creds = NEW_CREDENTIALS;
+        debug_printInfo("Connecting to AP with new credentials");
+    }
+    //This works provided the board had connected to the AP successfully	
+    else 
+    {
+        wifi_creds = DEFAULT_CREDENTIALS;
+        debug_printInfo("Connecting to AP with the last used credentials");
+    }
+	
+    if(!wifi_connectToAp(wifi_creds))
+    {
+        return false;
+    }
+	
+    //timeout_delete(&cloudResetTaskTimer);
+    xTimerStop(cloudResetTimer, 0);
+    
+    debug_printInfo("CLOUD: Cloud reset timer is deleted");
+    
+    //timeout_create(&mqttTimeoutTaskTimer, CLOUD_MQTT_TIMEOUT_COUNT);
+    xTimerStop(mqttTimeoutTimer, 0);
+    xTimerChangePeriod(mqttTimeoutTimer, pdMS_TO_TICKS(CLOUD_MQTT_TIMEOUT_COUNT), 0);
+    xTimerStart(mqttTimeoutTimer, 0);
     cloudStatus.cloudResetTimerFlag = false;
     cloudStatus.waitingForMQTT = true;		
     
@@ -444,4 +597,3 @@ static int32_t getMQTT_ConnectionAge(void)
 	}
 	return age;
 }
-

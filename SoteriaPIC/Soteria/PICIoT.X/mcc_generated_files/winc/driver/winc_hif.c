@@ -159,7 +159,7 @@ int8_t winc_hif_send(uint8_t u8Gid, uint8_t u8Opcode, const void *pvCtrlBuf, uin
         WINC_CRIT_SEC_HIF_LEAVE;
         return M2M_ERR_SEND;
     }
-
+    
     u32Reg = (uint32_t)u8Gid;
     u32Reg |= ((uint32_t)u8Opcode<<8);
     u32Reg |= ((uint32_t)strHif.u16Length<<16);
@@ -188,10 +188,8 @@ int8_t winc_hif_send(uint8_t u8Gid, uint8_t u8Opcode, const void *pvCtrlBuf, uin
             break;
         }
 
-        /*
-            * If it takes too long to get a response, the slow down to
-            * avoid back-to-back register read operations.
-            */
+       
+        //If it takes too long to get a response, the slow down to avoid back-to-back register read operations
         if (u16Count <= 500)
         {
             if (u16Count == 500)
@@ -202,7 +200,7 @@ int8_t winc_hif_send(uint8_t u8Gid, uint8_t u8Opcode, const void *pvCtrlBuf, uin
             winc_adapter_sleep(1);
         }
     }
-
+    
     if (winc_bus_error() || !u32DMAAddr)
     {
         winc_hif_chip_sleep();
@@ -229,16 +227,16 @@ int8_t winc_hif_send(uint8_t u8Gid, uint8_t u8Opcode, const void *pvCtrlBuf, uin
         u32CurrAddr += u16DataOffset;
         winc_bus_write_block(u32CurrAddr, pvDataBuf, u16DataSize);
     }
-
+    
     winc_bus_write_reg(WIFI_HOST_RCV_CTRL_3, (u32DMAAddr << 2) | NBIT1);
-
+    
     winc_hif_chip_sleep();
     
     WINC_CRIT_SEC_HIF_LEAVE;
 
     if (winc_bus_error())
         return M2M_ERR_SEND;
-
+    
     return M2M_SUCCESS;
 }
 
