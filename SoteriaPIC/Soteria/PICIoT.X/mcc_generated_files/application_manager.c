@@ -57,9 +57,6 @@ SOFTWARE.
 #endif
 
 
-//static StaticTask_t xMainTaskTCB;
-//static StackType_t xMainTaskStack[512];
-
 #define MAIN_DATATASK_INTERVAL 100L
 // The debounce time is currently close to 2 Seconds.
 #define SW_DEBOUNCE_INTERVAL   1460000L * 2
@@ -101,18 +98,13 @@ static void sendToCloud(void)
 {
     static char json[PAYLOAD_SIZE];
     static char publishMqttTopic[PUBLISH_TOPIC_SIZE];
-    //int rawTemperature = 0;
-    //int light = 0;
     sensorData_t sensorData;
     int len = 0;    
     memset((void*)publishMqttTopic, 0, sizeof(publishMqttTopic));
     sprintf(publishMqttTopic, "%s/sensors", cid);
-    // This part runs every CFG_SEND_INTERVAL seconds
+
     if (shared_networking_params.haveAPConnection)
     {
-        //int rawTemperature = SENSORS_getTempValue();
-        //int light = SENSORS_getLightValue();
-        //len = sprintf(json,"{\"Light\":%d,\"Temp\":%d.%02d,\"Hum\":%d}", light,rawTemperature/100,abs(rawTemperature)%100, 20);
         if (SENSOR_DATA_getSnapshot(&sensorData)) {
             len = SENSOR_DATA_snapshotToJson(&sensorData, json, sizeof(json));
         } else {
@@ -121,7 +113,6 @@ static void sendToCloud(void)
     }
     if (len >0) 
     {
-        //debug_print("Packet Info(JSON): %s", json);
         CLOUD_publishData((uint8_t*)publishMqttTopic ,(uint8_t*)json, len);        
         if (holdCount)
         {
@@ -178,27 +169,11 @@ static void receivedFromCloud(uint8_t *topic, uint8_t *payload)
 
 void application_init(void)
 {
-	uint8_t mode = WIFI_DEFAULT;
-	uint32_t sw0CurrentVal = 0;
-	uint32_t sw1CurrentVal = 0;
-	uint32_t i = 0;
-
-    // Initialization of modules before interrupts are enabled
-    // SYSTEM_Initialize();
-    
-    // Blocking debounce
-    
-    //timeout_flushAll();
-    for(i = 0; i < SW_DEBOUNCE_INTERVAL; i++)
-    {
-        sw0CurrentVal += SW0_TOGGLE_STATE;
-        sw1CurrentVal += SW1_TOGGLE_STATE;
-    }
-     
+    uint8_t mode = WIFI_DEFAULT;     
 
     LED_test();
 #if CFG_ENABLE_CLI     
-    //CLI_init();
+    CLI_init();
     //CLI_setdeviceId(attDeviceID);
 #endif   
     debug_init(attDeviceID);   
@@ -249,49 +224,10 @@ void application_init(void)
     if (mode == WIFI_DEFAULT) 
     {
         CLOUD_setupTask(attDeviceID);
-        //xTaskCreate(vMainDataTask, "App", 256, NULL, tskIDLE_PRIORITY + 2, NULL);
-        
-        //timeout_create(&MAIN_dataTasksTimer, MAIN_DATATASK_INTERVAL);
-        //xTaskCreate(vMainDataTask, "App", 256, NULL, tskIDLE_PRIORITY + 2, NULL);
-        //xTaskCreateStatic(vMainDataTask, "Main", 512, NULL, tskIDLE_PRIORITY + 2, xMainTaskStack, &xMainTaskTCB);
-        
-        
-        //vTaskDelay(pdMS_TO_TICKS(5000));
-        //if(1){
-        
-        /*
-        if(wifi_connectToAp(DEFAULT_CREDENTIALS)) {
-            debug_print("<<<====== LOG");
-            debug_print("<<<====== LOG");
-            debug_print("<<<====== LOG");
-            debug_print("<<<====== LOG");
-            debug_print("<<<====== LOG");
-        }
-        */
-        
-        //m2m_wifi_request_scan(M2M_WIFI_CH_ALL);
-        debug_print("Inside this...");
     }
     
     //subscribeToCloud();
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
@@ -371,188 +307,20 @@ void loadDefaultAWSEndpoint(void)
 }
 #endif
 
-// This scheduler will check all tasks and timers that are due and service them
-void runScheduler(void)
-{
-    timeout_callNextCallback();
-}
-
-// This gets called by the scheduler approximately every 100ms
-/*
-uint32_t MAIN_dataTask(void *payload)
-{
-    debug_print("LOG");
-    static uint32_t previousTransmissionTime = 0;
-    
-    // Get the current time. This uses the C standard library time functions
-    uint32_t timeNow = TIME_getCurrent();
-    
-    // Example of how to send data when MQTT is connected every 1 second based on the system clock
-    if(CLOUD_checkIsConnected())
-    {
-        // How many seconds since the last time this loop ran?
-        int32_t delta = TIME_getDiffTime(timeNow, previousTransmissionTime);
-        
-        if (delta >= CFG_SEND_INTERVAL)
-        {
-            previousTransmissionTime = timeNow;
-            // Call the data task in main.c
-            sendToCloud();
-        }
-    } 
-    else
-    {
-        ledParameterYellow.onTime = SOLID_OFF;
-        ledParameterYellow.offTime = SOLID_ON;
-        LED_control(&ledParameterYellow);         
-    }
-    
-    // Blue LED
-    if (!shared_networking_params.amConnectingAP)
-    {
-        if (shared_networking_params.haveAPConnection)
-        {
-            ledParameterBlue.onTime = SOLID_ON;
-            ledParameterBlue.offTime = SOLID_OFF;
-            LED_control(&ledParameterBlue);  
-        }
-        
-        // Green LED if we are in Access Point
-        if (!shared_networking_params.amConnectingSocket)
-        {
-            if(CLOUD_checkIsConnected())
-            {
-                ledParameterGreen.onTime = SOLID_ON;
-                ledParameterGreen.offTime = SOLID_OFF;
-                LED_control(&ledParameterGreen);
-            }
-            else if(shared_networking_params.haveDataConnection == 1)
-            {
-                ledParameterGreen.onTime = LED_BLINK;
-                ledParameterGreen.offTime = LED_BLINK;
-                LED_control(&ledParameterGreen);
-            }
-        }
-    }
-    
-    // RED LED
-    if (shared_networking_params.haveError)
-    {
-        ledParameterRed.onTime = SOLID_ON;
-        ledParameterRed.offTime = SOLID_OFF;
-        LED_control(&ledParameterRed);
-    }
-    else
-    {
-        ledParameterRed.onTime = SOLID_OFF;
-        ledParameterRed.offTime = SOLID_ON;
-        LED_control(&ledParameterRed);
-    }
-        
-    // This is milliseconds managed by the RTC and the scheduler, this return 
-    // makes the timer run another time, returning 0 will make it stop
-    return MAIN_DATATASK_INTERVAL; 
-}
-*/
-
-/*
-void vMainDataTask(void *pvParameters)
-{
-    (void)pvParameters;
-    //TickType_t lastWakeTime = xTaskGetTickCount();
-    //static uint32_t previousTransmissionTime = 0;
-    
-    debug_printInfo("MAIN task started!");
-    
-    for (;;)
-    {
-        debug_printInfo("MAIN task LOG!");
-        uint32_t timeNow = TIME_getCurrent();
-
-        if (CLOUD_checkIsConnected())
-        {
-            sendToCloud();
-            debug_print("Data sent to cloud");
-        }
-        else
-        {
-            ledParameterYellow.onTime = SOLID_OFF;
-            ledParameterYellow.offTime = SOLID_ON;
-            LED_control(&ledParameterYellow);
-            debug_print("Cloud is not connected...");
-        }
-
-        if (!shared_networking_params.amConnectingAP)
-        {
-            if (shared_networking_params.haveAPConnection)
-            {
-                ledParameterBlue.onTime = SOLID_ON;
-                ledParameterBlue.offTime = SOLID_OFF;
-                LED_control(&ledParameterBlue);
-            }
-
-            if (!shared_networking_params.amConnectingSocket)
-            {
-                if (CLOUD_checkIsConnected())
-                {
-                    ledParameterGreen.onTime = SOLID_ON;
-                    ledParameterGreen.offTime = SOLID_OFF;
-                    LED_control(&ledParameterGreen);
-                } else {
-                    if (shared_networking_params.haveDataConnection == 1)
-                    {
-                        ledParameterGreen.onTime = LED_BLINK;
-                        ledParameterGreen.offTime = LED_BLINK;
-                        LED_control(&ledParameterGreen);
-                    }
-                    
-                    debug_print("Cloud is not connected(2)...");
-                }
-            } else {
-                debug_print("Socket is not connected to the cloud...");
-            }
-        } else {
-            debug_print("There is no AP connection...");
-        }
-
-        if (shared_networking_params.haveError)
-        {
-            ledParameterRed.onTime = SOLID_ON;
-            ledParameterRed.offTime = SOLID_OFF;
-            LED_control(&ledParameterRed);
-        }
-        else
-        {
-            ledParameterRed.onTime = SOLID_OFF;
-            ledParameterRed.offTime = SOLID_ON;
-            LED_control(&ledParameterRed);
-        }
-        
-        debug_printInfo("MAIN task LOG!");
-
-        vTaskDelay(pdMS_TO_TICKS(1000));
-    }
-}
-*/
-
-
 
 void mainDataTask()
 {
-    //debug_printInfo("MAIN Step LOG!");
     uint32_t timeNow = TIME_getCurrent();
 
     if (CLOUD_checkIsConnected())
     {
         sendToCloud();
-        //debug_print("Data sent to cloud");
     }
     else
     {
         ledParameterYellow.onTime = SOLID_OFF;
         ledParameterYellow.offTime = SOLID_ON;
         LED_control(&ledParameterYellow);
-        debug_print("Cloud is not connected...");
     }
 
     if (!shared_networking_params.amConnectingAP)
@@ -578,8 +346,6 @@ void mainDataTask()
                     ledParameterGreen.offTime = LED_BLINK;
                     LED_control(&ledParameterGreen);
                 }
-
-                debug_print("Cloud is not connected(2)...");
             }
         } else {
             debug_print("Socket is not connected to the cloud...");

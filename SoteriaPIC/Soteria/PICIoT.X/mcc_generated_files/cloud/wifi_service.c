@@ -80,9 +80,9 @@ void vNtpTimeFetchTask(void *pvParameters);
 void vWifiHandlerTask(void *pvParameters);
 //uint32_t ntpTimeFetchTask(void *payload);
 //uint32_t wifiHandlerTask(void * param);
-uint32_t softApConnectTask(void* param);
+//uint32_t softApConnectTask(void* param);
 
-timerStruct_t softApConnectTimer = {softApConnectTask};
+//timerStruct_t softApConnectTimer = {softApConnectTask};
 //timerStruct_t ntpTimeFetchTimer  = {ntpTimeFetchTask};
 //imerStruct_t wifiHandlerTimer  = {wifiHandlerTask};
 	
@@ -216,7 +216,7 @@ bool wifi_connectToAp(uint8_t passed_wifi_creds)
     
     return true;
 }
-
+/*
 uint32_t softApConnectTask(void *param)
 {
     if(!wifi_connectToAp((uint8_t)NEW_CREDENTIALS))
@@ -229,6 +229,7 @@ uint32_t softApConnectTask(void *param)
     }
     return SOFT_AP_CONNECT_RETRY_INTERVAL;
 }
+*/
 
 bool wifi_disconnectFromAp(void)
 {
@@ -268,8 +269,6 @@ void vNtpTimeFetchTask(void *pvParameters)
 
     debug_printInfo("NTP task started!");
     
-    //TickType_t lastWake = xTaskGetTickCount();
-
     for (;;)
     {
         if (strcmp(ntpServerName, CFG_NTP_SERVER) != 0)
@@ -287,7 +286,6 @@ void vNtpTimeFetchTask(void *pvParameters)
 
         m2m_wifi_get_system_time();
         debug_printInfo("NTP task LOG!");
-        //vTaskDelayUntil(&lastWake, pdMS_TO_TICKS(CLOUD_NTP_TASK_INTERVAL));
         vTaskDelay(pdMS_TO_TICKS(1000));
     }
 }
@@ -342,7 +340,6 @@ void vWifiHandlerTask(void *pvParameters)
 
     for (;;)
     {
-        //debug_printInfo("WIFI scan task...");
         if (counter == 50) {
             m2m_wifi_get_system_time();
             debug_printInfo("Get system time request sent");
@@ -352,9 +349,7 @@ void vWifiHandlerTask(void *pvParameters)
         m2m_wifi_handle_events(NULL);
         
         counter++;
-        
-        //debug_printInfo("WIFI Task execution...");
-        
+                
         vTaskDelay(pdMS_TO_TICKS(100));
     }
 }
@@ -377,7 +372,6 @@ uint32_t checkBackTask(void * param)
 
 void wifiCallback(uint8_t msgType, const void *pMsg)
 {
-    debug_print("Wifi CALLBACK <<<===");
     switch (msgType) {
         case M2M_WIFI_RESP_CON_STATE_CHANGED:
         {
@@ -385,6 +379,7 @@ void wifiCallback(uint8_t msgType, const void *pMsg)
             tstrM2mWifiStateChanged *pstrWifiState = (tstrM2mWifiStateChanged *)pMsg;
             if (pstrWifiState->u8CurrState == M2M_WIFI_CONNECTED) 
             {
+                /*
                 if (responseFromProvisionConnect)
                 {
                     timeout_delete(&softApConnectTimer);
@@ -395,6 +390,7 @@ void wifiCallback(uint8_t msgType, const void *pMsg)
                     LED_control(&ledParameterBlue);
                     application_post_provisioning();
                 }
+                */
 
                 if ((shared_networking_params.amConnectingAP) && (!shared_networking_params.haveAPConnection))
                 {
@@ -404,9 +400,7 @@ void wifiCallback(uint8_t msgType, const void *pMsg)
                     shared_networking_params.haveAPConnection = 1;
                     shared_networking_params.amConnectingAP = 0;
                     shared_networking_params.amDefaultCred = 0;
-                    shared_networking_params.amConnectingSocket = 1;
-                    debug_printGOOD("WIFI CONNECTED. haveAPConnection = 1");
-                    
+                    shared_networking_params.amConnectingSocket = 1;                    
                 }
                 
                 if (shared_networking_params.amSoftAP)
@@ -526,7 +520,7 @@ void wifiCallback(uint8_t msgType, const void *pMsg)
 
 
 
-
+/*
 void enable_provision_ap(void)
 {
     tstrM2MAPConfig apConfig = {
@@ -542,5 +536,6 @@ void enable_provision_ap(void)
    static char gacHttpProvDomainName[] = CFG_WLAN_AP_NAME;
    m2m_wifi_start_provision_mode(&apConfig, gacHttpProvDomainName, 1);
 }
+*/
 
 

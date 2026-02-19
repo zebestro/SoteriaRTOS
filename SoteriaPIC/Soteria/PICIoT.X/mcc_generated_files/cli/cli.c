@@ -32,6 +32,7 @@
 
 #include "../drivers/uart.h"
 #include "../drivers/timeout.h"
+#include "../debug_print.h"
 #include "../delay.h"
 #include "cli.h"
 #include "../cloud/crypto_client/crypto_client.h"
@@ -52,19 +53,6 @@
 #define MAX_COMMAND_SIZE        (100)
 #define MAX_PUB_KEY_LEN         (200)
 #define CLI_TASK_INTERVAL       (50)
-#define NEWLINE "\r\n"
-#define KEY_OR_THING            "thing"
-#define UNKNOWN_CMD_MSG "--------------------------------------------" NEWLINE\
-                        "Unknown command. List of available commands:" NEWLINE\
-                        "reset"NEWLINE\
-                        "device"NEWLINE\
-                        KEY_OR_THING NEWLINE\
-                        "reconnect" NEWLINE\
-                        "version" NEWLINE\
-                        "cli_version" NEWLINE\
-                        "wifi <ssid>[,<pass>,[authType]]" NEWLINE\
-                        "debug" NEWLINE\
-                        "--------------------------------------------"NEWLINE"\4"
 
 static char command[MAX_COMMAND_SIZE];
 static bool isCommandReceived = false;
@@ -76,20 +64,20 @@ const char * const cli_option_version_number      = "1.0.1";
 const char * const firmware_version_number        = "4.1.2";
 
 static void command_received(char *command_text);
-static void reset_cmd(char *pArg);
-static void reconnect_cmd(char *pArg);
+//static void reset_cmd(char *pArg);
+//static void reconnect_cmd(char *pArg);
 static void set_wifi_auth(char *ssid_pwd_auth);
-static void get_thing_name(char *pArg);
-static void get_device_id(char *pArg);
-static void get_cli_version(char *pArg);
-static void get_firmware_version(char *pArg);
-static void set_debug_level(char *pArg);
+//static void get_thing_name(char *pArg);
+//static void get_device_id(char *pArg);
+//static void get_cli_version(char *pArg);
+//static void get_firmware_version(char *pArg);
+//static void set_debug_level(char *pArg);
 static bool endOfLineTest(char c);
 static void enableUsartRxInterrupts(void);
 
 
 uint32_t CLI_task(void*);
-timerStruct_t CLI_task_timer             = {CLI_task};
+//timerStruct_t CLI_task_timer             = {CLI_task};
 
 struct cmd
 {
@@ -99,31 +87,27 @@ struct cmd
 
 const struct cmd commands[] =
 {
-    { "reset",       reset_cmd},
-    { "reconnect",   reconnect_cmd },
+    //{ "reset",       reset_cmd},
+    //{ "reconnect",   reconnect_cmd },
     { "wifi",        set_wifi_auth },
-    { "thing",       get_thing_name },
-    { "device",      get_device_id },
-    { "cli_version", get_cli_version },
-    { "version",     get_firmware_version },
-    { "debug",       set_debug_level }
+    //{ "thing",       get_thing_name },
+    //{ "device",      get_device_id },
+    //{ "cli_version", get_cli_version },
+    //{ "version",     get_firmware_version },
+    //{ "debug",       set_debug_level }
 };
 
-void CLI_init(void)
-{
+void CLI_init(void) {
     enableUsartRxInterrupts();
-    timeout_create(&CLI_task_timer, CLI_TASK_INTERVAL);
+    //timeout_create(&CLI_task_timer, CLI_TASK_INTERVAL);
 }
 
-static bool endOfLineTest(char c)
-{
+static bool endOfLineTest(char c) {
    static char test = 0;
    bool retvalue = true;
 
-   if(c == '\n')
-   {
-      if(test == '\r')
-      {
+   if(c == '\n') {
+      if(test == '\r') {
          retvalue = false;
       }
    }
@@ -131,42 +115,33 @@ static bool endOfLineTest(char c)
    return retvalue;
 }
 
-uint32_t CLI_task(void* param)
-{
+uint32_t CLI_task(void* param) {
     bool cmd_rcvd = false;
 	char c = 0;
    // read all the EUSART bytes in the queue
-   while(uart[CLI].DataReady() && !isCommandReceived)
-   {
+   while(uart[CLI].DataReady() && !isCommandReceived) {
       c = uart[CLI].Read();
       // read until we get a newline
-      if(c == '\r' || c == '\n')
-      {
+      if(c == '\r' || c == '\n') {
          command[index] = 0;
          
-         if(!commandTooLongFlag)
-         {
-            if( endOfLineTest(c) && !cmd_rcvd )
-            {
+         if(!commandTooLongFlag) {
+            if( endOfLineTest(c) && !cmd_rcvd ) {
                command_received((char*)command);
 			   cmd_rcvd = true;
             }
          }
-         if(commandTooLongFlag)
-         {
-            printf(NEWLINE"Command too long"NEWLINE);
+         if(commandTooLongFlag) {
+            debug_print("Command too long");
          }
          index = 0;
          commandTooLongFlag = false;
       }
       else // otherwise store the character
       {
-         if(index < MAX_COMMAND_SIZE)
-         {
+         if(index < MAX_COMMAND_SIZE) {
             command[index++] = c;
-         }
-         else
-         {
+         } else {
             commandTooLongFlag = true;
          }
       }
@@ -175,8 +150,7 @@ uint32_t CLI_task(void* param)
    return CLI_TASK_INTERVAL;
 }
 
-static void set_wifi_auth(char *ssid_pwd_auth)
-{
+static void set_wifi_auth(char *ssid_pwd_auth) {
     char *credentials[3];
     char *pch;
     uint8_t params = 0;
@@ -187,14 +161,35 @@ static void set_wifi_auth(char *ssid_pwd_auth)
     pch = strtok (ssid_pwd_auth, ",");
     credentials[0]=pch;
        
-    while (pch != NULL && params <= 2)
-    {
+    while (pch != NULL && params <= 2) {
         credentials[params] = pch;
         params++;
         pch = strtok (NULL, ",");
-
     }
     
+    debug_print("---- WiFi credentials parsed ----");
+
+    if (credentials[0] != NULL) {
+        debug_print("SSID: %s", credentials[0]);
+    } else {
+        debug_print("SSID: <NULL>");
+    }
+
+    if (credentials[1] != NULL) {
+        debug_print("PWD: %s", credentials[1]);
+    } else {
+        debug_print("PWD: <NULL>");
+    }
+
+    if (credentials[2] != NULL) {
+        debug_print("AUTH: %s", credentials[2]);
+    } else {
+        debug_print("AUTH: <NULL>");
+    }
+
+    debug_print("Params value: %d", params);
+    debug_print("--------------------------------");
+
     if(credentials[0]!=NULL)
     {
         if(credentials[1]==NULL && credentials[2]==NULL) params=1;
@@ -208,8 +203,7 @@ static void set_wifi_auth(char *ssid_pwd_auth)
 		else params = atoi(credentials[2]);		
     }
 
-    switch (params)
-    {
+    switch (params) {
         case WIFI_PARAMS_OPEN:
             strncpy(ssid, credentials[0],M2M_MAX_SSID_LEN-1);
             strcpy(pass, "\0");
@@ -220,45 +214,42 @@ static void set_wifi_auth(char *ssid_pwd_auth)
         case WIFI_PARAMS_WEP:
             strncpy(ssid, credentials[0],M2M_MAX_SSID_LEN-1);
             strncpy(pass, credentials[1],M2M_MAX_PSK_LEN-1);
-            sprintf(authType, "%d", params);                
+                sprintf(authType, "%d", params);                
             break;
             
         default:
-			params = 0;
+            params = 0;
             break;
     }
-	if (params)
-	{
-		printf("OK\r\n\4");
-        if(CLOUD_checkIsConnected())
-        {
-            MQTT_Close(MQTT_GetClientConnectionInfo());
-        }        
-        if (shared_networking_params.haveDataConnection)    
-        {   // Disconnect from Socket if active
-            shared_networking_params.haveDataConnection = 0;
-            MQTT_Disconnect(MQTT_GetClientConnectionInfo());
-        } 
-        wifi_disconnectFromAp();
-        ledParameterYellow.onTime = SOLID_OFF;
-        ledParameterYellow.offTime = SOLID_ON;
-        LED_control(&ledParameterYellow);
-        ledParameterRed.onTime = SOLID_OFF;
-        ledParameterRed.offTime = SOLID_ON;
-        LED_control(&ledParameterRed);
-        ledParameterGreen.onTime = SOLID_OFF;
-        ledParameterGreen.offTime = SOLID_ON;
-        LED_control(&ledParameterGreen);
-        ledParameterBlue.onTime = LED_BLINK;
-        ledParameterBlue.offTime = LED_BLINK;
-        LED_control(&ledParameterBlue);
-	}
-	else
-	{
-		printf("Error. Wi-Fi command format is wifi <ssid>[,<pass>,[authType]]\r\n\4");
-	}
+    
+    if (params) {
+            debug_print("OK");
+            if(CLOUD_checkIsConnected()) {
+                MQTT_Close(MQTT_GetClientConnectionInfo());
+            }        
+            if (shared_networking_params.haveDataConnection)    
+            {   // Disconnect from Socket if active
+                shared_networking_params.haveDataConnection = 0;
+                MQTT_Disconnect(MQTT_GetClientConnectionInfo());
+            } 
+            wifi_disconnectFromAp();
+            ledParameterYellow.onTime = SOLID_OFF;
+            ledParameterYellow.offTime = SOLID_ON;
+            LED_control(&ledParameterYellow);
+            ledParameterRed.onTime = SOLID_OFF;
+            ledParameterRed.offTime = SOLID_ON;
+            LED_control(&ledParameterRed);
+            ledParameterGreen.onTime = SOLID_OFF;
+            ledParameterGreen.offTime = SOLID_ON;
+            LED_control(&ledParameterGreen);
+            ledParameterBlue.onTime = LED_BLINK;
+            ledParameterBlue.offTime = LED_BLINK;
+            LED_control(&ledParameterBlue);
+    } else {
+        debug_printError("Error. Wi-Fi command format is wifi <ssid>[,<pass>,[authType]]");
+    }
 }
-
+/*
 static void reconnect_cmd(char *pArg)
 {
     (void)pArg;
@@ -274,7 +265,7 @@ static void reconnect_cmd(char *pArg)
     
     shared_networking_params.haveDataConnection = 0;
     MQTT_Disconnect(MQTT_GetClientConnectionInfo());
-    printf("OK\r\n");
+    debug_print("OK");
 }
 
 static void reset_cmd(char *pArg)
@@ -291,11 +282,11 @@ static void set_debug_level(char *pArg)
    {
       level = *pArg - '0';
       debug_setSeverity(level);
-      printf("OK\r\n");
+      debug_print("OK");
    }
    else
    {
-      printf("debug parameter must be between 0 (Least) and 4 (Most) \r\n");
+      debug_printInfo("debug parameter must be between 0 (Least) and 4 (Most)");
    }
 }
 
@@ -305,11 +296,11 @@ static void get_thing_name(char *pArg)
         
     if (cid != NULL)
     {
-        printf("%s\r\n\4",cid);
+        debug_print("%s",cid);
     }
     else
     {
-        printf("Error getting Thing Name.\r\n\4");
+        debug_printError("Error getting Thing Name.");
     }
 }
 
@@ -324,26 +315,26 @@ static void get_device_id(char *pArg)
    (void) pArg;
     if (ateccsn)
     {
-        printf("%s\r\n\4", ateccsn);
+        debug_print("%s", ateccsn);
     }
     else
     {
-        printf("Unknown.\r\n\4");
+        debug_printError("Unknown.");
     }
 }
 
 static void get_cli_version(char *pArg)
 {
     (void)pArg;
-    printf("v%s\r\n\4", cli_option_version_number);
+    debug_print("v%s", cli_option_version_number);
 }
 
 static void get_firmware_version(char *pArg)
 {    
     (void)pArg;
-    printf("v%s\r\n\4", firmware_version_number);
+    debug_print("v%s", firmware_version_number);
 }
-
+*/
 static void command_received(char *command_text)
 {
     uint8_t cmp;
@@ -377,7 +368,7 @@ static void command_received(char *command_text)
         }
     }
 
-    printf(UNKNOWN_CMD_MSG);
+    debug_printError("Unknown command");
 }
 
 static void enableUsartRxInterrupts(void)

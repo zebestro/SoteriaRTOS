@@ -76,6 +76,7 @@ static bool volatile rxOverflowed;
 
 #define UART1_CONFIG_TX_BYTEQ_LENGTH (128+1)
 #define UART1_CONFIG_RX_BYTEQ_LENGTH (128+1)
+#define FCY     16000000UL
 
 /** UART Driver Queue
 
@@ -106,6 +107,8 @@ void UART1_Initialize (void)
    U1STA = 0x0000;
    // BaudRate = 9600; Frequency = 16000000 Hz; U1BRG 416; 
    U1BRG = 0x01A0;
+   //U1BRG = 34;
+   //U1BRG = FCY / (4UL * 115200);
    // ADMADDR 0; ADMMASK 0; 
    U1ADMD = 0x0000;
    
@@ -116,7 +119,7 @@ void UART1_Initialize (void)
    
    rxOverflowed = 0;
 
-   UART1_SetTxInterruptHandler(UART1_Transmit_ISR);
+   //UART1_SetTxInterruptHandler(UART1_Transmit_ISR);
 
    UART1_SetRxInterruptHandler(UART1_Receive_ISR);
    IEC0bits.U1RXIE = 1;
